@@ -11,7 +11,7 @@ dependencies:
   alkokh_mobile_sdk:
     git:
       url: https://github.com/alifaaz/Alkokh-dart-sdk.git
-      ref: main
+      ref: master
 ```
 
 For local development, the Flutter app can temporarily use `path: ../packages/alkokh_mobile_sdk`.
