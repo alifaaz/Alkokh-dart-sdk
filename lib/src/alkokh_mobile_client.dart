@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'alkokh_mobile_exception.dart';
+import 'cache_store.dart';
 import 'models.dart';
 import 'token_store.dart';
 
@@ -12,24 +13,57 @@ typedef UploadProgressCallback = void Function(int sentBytes, int totalBytes);
 
 class AlkokhMobileConfig {
   const AlkokhMobileConfig({
-    this.baseUrl = 'http://178.105.22.175:8002',
+    this.baseUrl,
+    this.scheme = 'http',
+    this.host = '178.105.22.175',
+    this.port = 8002,
     this.refreshSkew = const Duration(seconds: 30),
     this.requestIdProvider,
+    this.cacheEnabled = false,
+    this.cacheTtl = const Duration(minutes: 5),
+    this.staleOnError = true,
   });
 
-  final String baseUrl;
+  final String? baseUrl;
+  final String scheme;
+  final String host;
+  final int? port;
   final Duration refreshSkew;
   final RequestIdProvider? requestIdProvider;
+  final bool cacheEnabled;
+  final Duration cacheTtl;
+  final bool staleOnError;
+
+  String get effectiveBaseUrl {
+    final explicitBaseUrl = baseUrl?.trim();
+    if (explicitBaseUrl != null && explicitBaseUrl.isNotEmpty) {
+      return explicitBaseUrl.replaceFirst(RegExp(r'/+$'), '');
+    }
+    final uri = Uri(scheme: scheme, host: host, port: port);
+    return uri.toString().replaceFirst(RegExp(r'/+$'), '');
+  }
 
   AlkokhMobileConfig copyWith({
     String? baseUrl,
+    String? scheme,
+    String? host,
+    int? port,
     Duration? refreshSkew,
     RequestIdProvider? requestIdProvider,
+    bool? cacheEnabled,
+    Duration? cacheTtl,
+    bool? staleOnError,
   }) {
     return AlkokhMobileConfig(
       baseUrl: baseUrl ?? this.baseUrl,
+      scheme: scheme ?? this.scheme,
+      host: host ?? this.host,
+      port: port ?? this.port,
       refreshSkew: refreshSkew ?? this.refreshSkew,
       requestIdProvider: requestIdProvider ?? this.requestIdProvider,
+      cacheEnabled: cacheEnabled ?? this.cacheEnabled,
+      cacheTtl: cacheTtl ?? this.cacheTtl,
+      staleOnError: staleOnError ?? this.staleOnError,
     );
   }
 }
@@ -40,21 +74,33 @@ class AlkokhMobileClient {
     String? baseUrl,
     http.Client? httpClient,
     TokenStore? tokenStore,
+    CacheStore? cacheStore,
     Duration? refreshSkew,
     RequestIdProvider? requestIdProvider,
-  }) : _baseUrl = (baseUrl ?? config.baseUrl).replaceFirst(RegExp(r'/+$'), ''),
+  }) : _baseUrl = (baseUrl ?? config.effectiveBaseUrl).replaceFirst(
+         RegExp(r'/+$'),
+         '',
+       ),
        _http = httpClient ?? http.Client(),
        _ownsHttpClient = httpClient == null,
        _tokenStore = tokenStore ?? MemoryTokenStore(),
+       _cacheStore = cacheStore ?? MemoryCacheStore(),
        _refreshSkew = refreshSkew ?? config.refreshSkew,
-       _requestIdProvider = requestIdProvider ?? config.requestIdProvider;
+       _requestIdProvider = requestIdProvider ?? config.requestIdProvider,
+       _cacheEnabled = config.cacheEnabled,
+       _cacheTtl = config.cacheTtl,
+       _staleOnError = config.staleOnError;
 
   final String _baseUrl;
   final http.Client _http;
   final bool _ownsHttpClient;
   final TokenStore _tokenStore;
+  final CacheStore _cacheStore;
   final Duration _refreshSkew;
   final RequestIdProvider? _requestIdProvider;
+  final bool _cacheEnabled;
+  final Duration _cacheTtl;
+  final bool _staleOnError;
 
   Future<AuthSession?> get currentSession => _tokenStore.read();
 
@@ -168,20 +214,31 @@ class AlkokhMobileClient {
     });
   }
 
-  Future<MobileAppConfig> getConfig() async {
-    final data = await _getPublic('pet_app.api.mobile.config.get_config');
+  Future<MobileAppConfig> getConfig({bool forceRefresh = false}) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.config.get_config',
+      forceRefresh: forceRefresh,
+    );
     return MobileAppConfig.fromJson(data);
   }
 
-  Future<SupportContact> getSupportContact() async {
-    final data = await _getPublic('pet_app.api.mobile.config.support_contact');
+  Future<SupportContact> getSupportContact({bool forceRefresh = false}) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.config.support_contact',
+      forceRefresh: forceRefresh,
+    );
     return SupportContact.fromJson(data);
   }
 
-  Future<StaticContent> getContent(String key) async {
-    final data = await _getPublic('pet_app.api.mobile.config.content', {
-      'key': key,
-    });
+  Future<StaticContent> getContent(
+    String key, {
+    bool forceRefresh = false,
+  }) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.config.content',
+      query: {'key': key},
+      forceRefresh: forceRefresh,
+    );
     return StaticContent.fromJson(data);
   }
 
@@ -409,8 +466,11 @@ class AlkokhMobileClient {
     return ReverseGeocodeResult.fromJson(data);
   }
 
-  Future<CatalogHome> getHome() async {
-    final data = await _getPublic('pet_app.api.mobile.catalog.home');
+  Future<CatalogHome> getHome({bool forceRefresh = false}) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.home',
+      forceRefresh: forceRefresh,
+    );
     return CatalogHome.fromJson(data);
   }
 
@@ -423,6 +483,7 @@ class AlkokhMobileClient {
     String? sort,
     int limit = 20,
     String? cursor,
+    bool forceRefresh = false,
   }) async {
     final query = <String, Object?>{'limit': limit};
     if (category != null && category.isNotEmpty) query['category'] = category;
@@ -433,9 +494,10 @@ class AlkokhMobileClient {
     if (sort != null && sort.isNotEmpty) query['sort'] = sort;
     if (cursor != null && cursor.isNotEmpty) query['cursor'] = cursor;
 
-    final data = await _getPublic(
+    final data = await _getPublicCached(
       'pet_app.api.mobile.catalog.list_products',
-      query,
+      query: query,
+      forceRefresh: forceRefresh,
     );
     return PagedResult(
       items: _listOfMaps(data['items']).map(CatalogProduct.fromJson).toList(),
@@ -444,23 +506,30 @@ class AlkokhMobileClient {
     );
   }
 
-  Future<CatalogProduct> getProduct(String productId) async {
-    final data = await _getPublic('pet_app.api.mobile.catalog.get_product', {
-      'product': productId,
-    });
+  Future<CatalogProduct> getProduct(
+    String productId, {
+    bool forceRefresh = false,
+  }) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.get_product',
+      query: {'product': productId},
+      forceRefresh: forceRefresh,
+    );
     return CatalogProduct.fromJson(data);
   }
 
   Future<List<CatalogCategory>> listCategories({
     String? parent,
     String? search,
+    bool forceRefresh = false,
   }) async {
-    final data = await _getPublic(
+    final data = await _getPublicCached(
       'pet_app.api.mobile.catalog.list_categories',
-      {
+      query: {
         if (parent != null) 'parent': parent,
         if (search != null) 'search': search,
       },
+      forceRefresh: forceRefresh,
     );
     return _listOfMaps(data['items']).map(CatalogCategory.fromJson).toList();
   }
@@ -468,11 +537,13 @@ class AlkokhMobileClient {
   Future<List<CatalogBrand>> listBrands({
     String? search,
     int limit = 100,
+    bool forceRefresh = false,
   }) async {
-    final data = await _getPublic('pet_app.api.mobile.catalog.list_brands', {
-      'limit': limit,
-      if (search != null) 'search': search,
-    });
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.list_brands',
+      query: {'limit': limit, if (search != null) 'search': search},
+      forceRefresh: forceRefresh,
+    );
     return _listOfMaps(data['items']).map(CatalogBrand.fromJson).toList();
   }
 
@@ -480,12 +551,17 @@ class AlkokhMobileClient {
     required String query,
     int limit = 20,
     String? cursor,
+    bool forceRefresh = false,
   }) async {
-    final data = await _getPublic('pet_app.api.mobile.catalog.search', {
-      'q': query,
-      'limit': limit,
-      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-    });
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.search',
+      query: {
+        'q': query,
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+      forceRefresh: forceRefresh,
+    );
     return PagedResult(
       items: _listOfMaps(data['items']).map(CatalogProduct.fromJson).toList(),
       hasMore: data['hasMore'] == true,
@@ -496,11 +572,13 @@ class AlkokhMobileClient {
   Future<List<ProductSuggestion>> suggestProducts(
     String query, {
     int limit = 8,
+    bool forceRefresh = false,
   }) async {
-    final data = await _getPublic('pet_app.api.mobile.catalog.suggest', {
-      'q': query,
-      'limit': limit,
-    });
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.suggest',
+      query: {'q': query, 'limit': limit},
+      forceRefresh: forceRefresh,
+    );
     return _listOfMaps(data['items']).map(ProductSuggestion.fromJson).toList();
   }
 
@@ -542,13 +620,17 @@ class AlkokhMobileClient {
     String productId, {
     int limit = 20,
     String? cursor,
+    bool forceRefresh = false,
   }) async {
-    final data =
-        await _getPublic('pet_app.api.mobile.reviews.list_product_reviews', {
-          'product': productId,
-          'limit': limit,
-          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-        });
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.reviews.list_product_reviews',
+      query: {
+        'product': productId,
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+      forceRefresh: forceRefresh,
+    );
     return ProductReviewPage.fromJson(data);
   }
 
@@ -563,6 +645,7 @@ class AlkokhMobileClient {
           'rating': _validateRating(rating),
           if (notes != null) 'notes': notes,
         });
+    await _clearProductReviewCache(productId);
     return ProductReview.fromJson(data);
   }
 
@@ -968,6 +1051,21 @@ class AlkokhMobileClient {
     return _request('GET', method, query: query, auth: false);
   }
 
+  Future<Map<String, Object?>> _getPublicCached(
+    String method, {
+    Map<String, Object?>? query,
+    bool forceRefresh = false,
+  }) {
+    return _request(
+      'GET',
+      method,
+      query: query,
+      auth: false,
+      cache: true,
+      forceRefresh: forceRefresh,
+    );
+  }
+
   Future<Map<String, Object?>> _postAuthed(
     String method,
     Map<String, Object?> body,
@@ -1040,7 +1138,20 @@ class AlkokhMobileClient {
     Map<String, Object?>? query,
     required bool auth,
     bool retried = false,
+    bool cache = false,
+    bool forceRefresh = false,
   }) async {
+    final shouldCache = cache && _cacheEnabled && !auth && httpMethod == 'GET';
+    final cacheKey = shouldCache ? _cacheKey(method, query) : null;
+    final cachedEntry = cacheKey == null
+        ? null
+        : await _cacheStore.read(cacheKey);
+    if (cachedEntry != null &&
+        !forceRefresh &&
+        cachedEntry.isFresh(_cacheTtl, DateTime.now())) {
+      return cachedEntry.data;
+    }
+
     final headers = <String, String>{'Accept': 'application/json'};
     if (httpMethod != 'GET') {
       headers['Content-Type'] = 'application/json';
@@ -1052,13 +1163,26 @@ class AlkokhMobileClient {
     }
 
     final uri = _uri(method, query);
-    final response = httpMethod == 'GET'
-        ? await _http.get(uri, headers: headers)
-        : await _http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
-
     try {
-      return _decodeData(response);
+      final response = httpMethod == 'GET'
+          ? await _http.get(uri, headers: headers)
+          : await _http.post(
+              uri,
+              headers: headers,
+              body: jsonEncode(body ?? {}),
+            );
+      final data = _decodeData(response);
+      if (cacheKey != null) {
+        await _cacheStore.write(
+          cacheKey,
+          CacheEntry(data: data, createdAt: DateTime.now()),
+        );
+      }
+      return data;
     } on AlkokhMobileException catch (error) {
+      if (cacheKey != null && _staleOnError && cachedEntry != null) {
+        return cachedEntry.data;
+      }
       if (auth && !retried && error.statusCode == 401) {
         await refresh();
         return _request(
@@ -1068,10 +1192,32 @@ class AlkokhMobileClient {
           query: query,
           auth: auth,
           retried: true,
+          cache: cache,
+          forceRefresh: forceRefresh,
         );
       }
       rethrow;
+    } catch (_) {
+      if (cacheKey != null && _staleOnError && cachedEntry != null) {
+        return cachedEntry.data;
+      }
+      rethrow;
     }
+  }
+
+  Future<void> _clearProductReviewCache(String productId) {
+    final encodedProduct = Uri.encodeQueryComponent(productId);
+    final productDetailKey = _cacheKey(
+      'pet_app.api.mobile.catalog.get_product',
+      {'product': productId},
+    );
+    return _cacheStore.deleteWhere((key) {
+      if (key == productDetailKey) return true;
+      return key.startsWith(
+            'pet_app.api.mobile.reviews.list_product_reviews?',
+          ) &&
+          key.contains('product=$encodedProduct');
+    });
   }
 
   Future<AuthSession> _sessionForRequest() async {
@@ -1124,6 +1270,22 @@ class AlkokhMobileClient {
       if (value != null) queryParameters[entry.key] = value.toString();
     }
     return uri.replace(queryParameters: queryParameters);
+  }
+
+  String _cacheKey(String method, Map<String, Object?>? query) {
+    if (query == null || query.isEmpty) return method;
+    final parts = <String>[];
+    final keys = query.keys.toList()..sort();
+    for (final key in keys) {
+      final value = query[key];
+      if (value == null) continue;
+      parts.add(
+        '${Uri.encodeQueryComponent(key)}='
+        '${Uri.encodeQueryComponent(value.toString())}',
+      );
+    }
+    if (parts.isEmpty) return method;
+    return '$method?${parts.join('&')}';
   }
 
   Map<String, Object?> _decodeData(http.Response response) {

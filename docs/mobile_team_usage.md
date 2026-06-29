@@ -22,10 +22,16 @@ Keep backend values in the Flutter app configuration layer, then pass them into 
 
 ```dart
 final sdkConfig = AlkokhMobileConfig(
-  baseUrl: appConfig.apiBaseUrl,
+  scheme: appConfig.apiScheme,
+  host: appConfig.apiHost,
+  port: appConfig.apiPort,
+  cacheEnabled: appConfig.cacheEnabled,
+  cacheTtl: const Duration(minutes: 5),
   requestIdProvider: () => appConfig.nextRequestId(),
 );
 ```
+
+If the app already stores a full URL, `baseUrl: appConfig.apiBaseUrl` is still supported and takes precedence over `scheme`, `host`, and `port`.
 
 ## Secure Token Storage
 
@@ -46,6 +52,36 @@ final tokenStore = KeyValueTokenStore(
 final client = AlkokhMobileClient(
   config: sdkConfig,
   tokenStore: tokenStore,
+);
+```
+
+## Optional Persistent Cache
+
+When `cacheEnabled` is true, the SDK uses `MemoryCacheStore` unless the app provides a cache store. For persistence across app restarts, plug any Flutter key-value storage into `KeyValueCacheStore`:
+
+```dart
+final cacheStore = KeyValueCacheStore(
+  readValue: (key) => sharedPreferencesAsync.getString(key),
+  writeValue: (key, value) => sharedPreferencesAsync.setString(key, value),
+  deleteValue: (key) => sharedPreferencesAsync.remove(key),
+);
+
+final client = AlkokhMobileClient(
+  config: sdkConfig,
+  tokenStore: tokenStore,
+  cacheStore: cacheStore,
+);
+```
+
+The default cache scope is safe public reads only: config, support/content, home, catalog, search, suggestions, and product reviews. Auth, profile, addresses, pets, favorites, orders, devices, uploads, and all `POST` calls are not cached by default.
+
+Use `forceRefresh: true` to bypass cache for a single read:
+
+```dart
+final products = await client.listProducts(
+  limit: 20,
+  cursor: nextCursor,
+  forceRefresh: true,
 );
 ```
 

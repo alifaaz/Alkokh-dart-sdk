@@ -1,7 +1,12 @@
 import 'package:alkokh_mobile_sdk/alkokh_mobile_sdk.dart';
 
 Future<void> main() async {
-  const config = AlkokhMobileConfig(baseUrl: 'http://178.105.22.175:8002');
+  const config = AlkokhMobileConfig(
+    scheme: 'http',
+    host: '178.105.22.175',
+    port: 8002,
+    cacheEnabled: true,
+  );
   final client = AlkokhMobileClient(
     config: config,
     tokenStore: MemoryTokenStore(),

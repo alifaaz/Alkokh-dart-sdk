@@ -112,6 +112,206 @@ void main() {
     expect(await store.read(), isNull);
   });
 
+  test('KeyValueCacheStore persists cache JSON behind callbacks', () async {
+    final storage = <String, String>{};
+    final store = KeyValueCacheStore(
+      readValue: (key) async => storage[key],
+      writeValue: (key, value) async {
+        storage[key] = value;
+      },
+      deleteValue: (key) async {
+        storage.remove(key);
+      },
+    );
+
+    await store.write(
+      'products?limit=20',
+      CacheEntry(
+        data: {
+          'items': [
+            {'id': 'Product-001'},
+          ],
+        },
+        createdAt: DateTime.parse('2026-06-29T10:00:00Z'),
+      ),
+    );
+
+    expect(storage, contains('alkokh_mobile_cache:index'));
+    expect((await store.read('products?limit=20'))?.data['items'], isA<List>());
+
+    await store.deleteWhere((key) => key.startsWith('products?'));
+    expect(await store.read('products?limit=20'), isNull);
+  });
+
+  test('config builds URL from scheme host and port', () async {
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(
+        scheme: 'https',
+        host: 'api.example.test',
+        port: 9443,
+      ),
+      httpClient: MockClient((request) async {
+        expect(request.url.origin, 'https://api.example.test:9443');
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.mobile.config.get_config',
+        );
+        return _configResponse(currency: 'IQD');
+      }),
+    );
+
+    expect((await client.getConfig()).currency, 'IQD');
+  });
+
+  test('baseUrl takes precedence over structured URL config', () async {
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(
+        baseUrl: 'https://base.example.test',
+        scheme: 'http',
+        host: 'ignored.example.test',
+        port: 8002,
+      ),
+      httpClient: MockClient((request) async {
+        expect(request.url.origin, 'https://base.example.test');
+        return _configResponse(currency: 'IQD');
+      }),
+    );
+
+    expect((await client.getConfig()).currency, 'IQD');
+  });
+
+  test('cache disabled calls safe public reads every time', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(cacheEnabled: false),
+      httpClient: MockClient((request) async {
+        call++;
+        return _configResponse(currency: 'IQD');
+      }),
+    );
+
+    await client.getConfig();
+    await client.getConfig();
+
+    expect(call, 2);
+  });
+
+  test('cache enabled caches product pages by cursor query', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(cacheEnabled: true),
+      httpClient: MockClient((request) async {
+        call++;
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'items': [
+                {
+                  'id': 'Product-${call.toString().padLeft(3, '0')}',
+                  'name': 'Product $call',
+                  'effective_price': 1000,
+                  'in_stock': true,
+                },
+              ],
+              'hasMore': false,
+            },
+          },
+        });
+      }),
+    );
+
+    final first = await client.listProducts(limit: 20);
+    final firstAgain = await client.listProducts(limit: 20);
+    final secondCursor = await client.listProducts(limit: 20, cursor: '20');
+
+    expect(first.items.single.id, 'Product-001');
+    expect(firstAgain.items.single.id, 'Product-001');
+    expect(secondCursor.items.single.id, 'Product-002');
+    expect(call, 2);
+  });
+
+  test(
+    'forceRefresh bypasses cache and overwrites cached safe reads',
+    () async {
+      var call = 0;
+      final client = AlkokhMobileClient(
+        config: const AlkokhMobileConfig(cacheEnabled: true),
+        httpClient: MockClient((request) async {
+          call++;
+          return _configResponse(currency: call == 1 ? 'IQD' : 'USD');
+        }),
+      );
+
+      expect((await client.getConfig()).currency, 'IQD');
+      expect((await client.getConfig(forceRefresh: true)).currency, 'USD');
+      expect((await client.getConfig()).currency, 'USD');
+      expect(call, 2);
+    },
+  );
+
+  test('expired cache refetches safe public reads', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(
+        cacheEnabled: true,
+        cacheTtl: Duration.zero,
+      ),
+      httpClient: MockClient((request) async {
+        call++;
+        return _configResponse(currency: call == 1 ? 'IQD' : 'USD');
+      }),
+    );
+
+    expect((await client.getConfig()).currency, 'IQD');
+    expect((await client.getConfig()).currency, 'USD');
+    expect(call, 2);
+  });
+
+  test(
+    'staleOnError returns stale cached safe read on network failure',
+    () async {
+      var call = 0;
+      final client = AlkokhMobileClient(
+        config: const AlkokhMobileConfig(cacheEnabled: true),
+        httpClient: MockClient((request) async {
+          call++;
+          if (call == 1) {
+            return _configResponse(currency: 'IQD');
+          }
+          throw Exception('offline');
+        }),
+      );
+
+      expect((await client.getConfig()).currency, 'IQD');
+      expect((await client.getConfig(forceRefresh: true)).currency, 'IQD');
+      expect(call, 2);
+    },
+  );
+
+  test('private reads are not cached by default', () async {
+    final store = await _authedStore();
+    var call = 0;
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(cacheEnabled: true),
+      httpClient: MockClient((request) async {
+        call++;
+        expect(request.headers['Authorization'], 'Bearer access');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {'guardian_id': 'G-$call'},
+          },
+        });
+      }),
+      tokenStore: store,
+    );
+
+    expect((await client.getMe()).guardianId, 'G-1');
+    expect((await client.getMe()).guardianId, 'G-2');
+    expect(call, 2);
+  });
+
   test('listOrders sends Bearer token and parses paged orders', () async {
     final store = MemoryTokenStore();
     await store.write(
@@ -1092,4 +1292,18 @@ http.Response _json(Map<String, Object?> body, {int statusCode = 200}) {
     statusCode,
     headers: {'content-type': 'application/json'},
   );
+}
+
+http.Response _configResponse({required String currency}) {
+  return _json({
+    'message': {
+      'ok': true,
+      'data': {
+        'currency': currency,
+        'supported_locales': ['en'],
+        'default_locale': 'en',
+        'feature_flags': {'catalog': true},
+      },
+    },
+  });
 }

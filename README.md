@@ -20,7 +20,11 @@ dependencies:
 import 'package:alkokh_mobile_sdk/alkokh_mobile_sdk.dart';
 
 final sdkConfig = AlkokhMobileConfig(
-  baseUrl: appConfig.apiBaseUrl,
+  scheme: appConfig.apiScheme,
+  host: appConfig.apiHost,
+  port: appConfig.apiPort,
+  cacheEnabled: true,
+  cacheTtl: const Duration(minutes: 5),
   requestIdProvider: () => 'mobile-${DateTime.now().microsecondsSinceEpoch}',
 );
 
@@ -37,6 +41,9 @@ final session = await client.signIn(
 final orders = await client.listOrders();
 final home = await client.getHome();
 final products = await client.listProducts(category: 'Products');
+final nextProducts = products.hasMore
+    ? await client.listProducts(cursor: products.nextCursor)
+    : null;
 final favorites = await client.listFavorites();
 final pets = await client.listPets();
 final addresses = await client.listAddresses();
@@ -61,9 +68,27 @@ For Flutter, use `KeyValueTokenStore` with `flutter_secure_storage` and pass it 
 - Debugging: optional `X-Request-Id` provider.
 - Upload UX: avatar and pet photo upload progress callbacks.
 - Token storage: pure-Dart `KeyValueTokenStore` adapter for secure storage plugins.
+- Cache: opt-in safe public-read cache with `MemoryCacheStore` or `KeyValueCacheStore`.
 
 Orders are still backend `Sales Order` records. The SDK does not create or expect a separate Order model.
 Payment is currently cash-only; `placeOrder` sends `Cash on Delivery`.
+
+## Config And Cache
+
+Use structured URL config from the Flutter app:
+
+```dart
+const config = AlkokhMobileConfig(
+  scheme: 'http',
+  host: '178.105.22.175',
+  port: 8002,
+  cacheEnabled: true,
+);
+```
+
+You can still pass `baseUrl`; when it is set, it wins over `scheme`, `host`, and `port`.
+
+`cacheEnabled: true` caches safe public reads only: config, support/content, home, catalog, search, suggestions, and product reviews. Auth, profile, pets, favorites, orders, devices, uploads, and all `POST` calls are not cached by default.
 
 ## Test
 
