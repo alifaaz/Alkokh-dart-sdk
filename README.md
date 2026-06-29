@@ -13,7 +13,7 @@ dependencies:
   alkokh_mobile_sdk:
     git:
       url: https://github.com/alifaaz/Alkokh-dart-sdk.git
-      ref: main
+      ref: master
 ```
 
 ```dart
