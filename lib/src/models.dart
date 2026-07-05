@@ -1030,52 +1030,8 @@ class ProductSuggestion {
   }
 }
 
-class CatalogHome {
-  const CatalogHome({
-    required this.categories,
-    required this.brands,
-    required this.sections,
-  });
-
-  final List<CatalogCategory> categories;
-  final List<CatalogBrand> brands;
-  final List<CatalogSection> sections;
-
-  static CatalogHome fromJson(Map<String, Object?> json) {
-    return CatalogHome(
-      categories: _listOfMaps(
-        json['categories'],
-      ).map(CatalogCategory.fromJson).toList(),
-      brands: _listOfMaps(json['brands']).map(CatalogBrand.fromJson).toList(),
-      sections: _listOfMaps(
-        json['sections'],
-      ).map(CatalogSection.fromJson).toList(),
-    );
-  }
-}
-
-class CatalogSection {
-  const CatalogSection({
-    required this.key,
-    required this.title,
-    required this.items,
-  });
-
-  final String key;
-  final String title;
-  final List<CatalogProduct> items;
-
-  static CatalogSection fromJson(Map<String, Object?> json) {
-    return CatalogSection(
-      key: json['key'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      items: _listOfMaps(json['items']).map(CatalogProduct.fromJson).toList(),
-    );
-  }
-}
-
-class HomeV2 {
-  const HomeV2({
+class MobileHome {
+  const MobileHome({
     required this.version,
     required this.updatedAt,
     required this.cacheTtlSeconds,
@@ -1093,8 +1049,8 @@ class HomeV2 {
   final List<HomeBlock> blocks;
   final Map<String, Object?> raw;
 
-  static HomeV2 fromJson(Map<String, Object?> json) {
-    return HomeV2(
+  static MobileHome fromJson(Map<String, Object?> json) {
+    return MobileHome(
       version: _readInt(json['version']) ?? 0,
       updatedAt: json['updated_at']?.toString() ?? '',
       cacheTtlSeconds: _readInt(json['cache_ttl_seconds']) ?? 0,

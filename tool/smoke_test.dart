@@ -27,7 +27,7 @@ Future<void> main() async {
     _ok('config currency=${config.currency}');
 
     final home = await client.getHome();
-    _ok('home sections=${home.sections.length}');
+    _ok('home blocks=${home.blocks.length}');
 
     final products = await client.listProducts(limit: 5);
     _ok('products=${products.items.length}');

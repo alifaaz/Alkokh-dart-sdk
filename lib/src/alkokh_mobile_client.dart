@@ -466,27 +466,21 @@ class AlkokhMobileClient {
     return ReverseGeocodeResult.fromJson(data);
   }
 
-  Future<CatalogHome> getHome({bool forceRefresh = false}) async {
-    final data = await _getPublicCached(
-      'pet_app.api.mobile.catalog.home',
-      forceRefresh: forceRefresh,
-    );
-    return CatalogHome.fromJson(data);
-  }
-
-  Future<HomeV2> getHomeV2({String? lang, bool forceRefresh = false}) async {
+  Future<MobileHome> getHome({String? lang, bool forceRefresh = false}) async {
     final data = await _getPublicCached(
       'pet_app.api.mobile.catalog.home_v2',
       query: {if (lang != null && lang.isNotEmpty) 'lang': lang},
       forceRefresh: forceRefresh,
     );
-    return HomeV2.fromJson(data);
+    return MobileHome.fromJson(data);
   }
 
   Future<PagedResult<CatalogProduct>> listProducts({
     String? listId,
     String? category,
     String? brandId,
+    String? filter,
+    String? tag,
     num? minPrice,
     num? maxPrice,
     bool? inStock,
@@ -499,6 +493,8 @@ class AlkokhMobileClient {
     if (listId != null && listId.isNotEmpty) query['list'] = listId;
     if (category != null && category.isNotEmpty) query['category'] = category;
     if (brandId != null && brandId.isNotEmpty) query['brandId'] = brandId;
+    if (filter != null && filter.isNotEmpty) query['filter'] = filter;
+    if (tag != null && tag.isNotEmpty) query['tag'] = tag;
     if (minPrice != null) query['minPrice'] = minPrice;
     if (maxPrice != null) query['maxPrice'] = maxPrice;
     if (inStock != null) query['inStock'] = inStock ? 1 : 0;
@@ -519,6 +515,8 @@ class AlkokhMobileClient {
 
   Future<PagedResult<HomeProductCard>> listHomeProducts({
     required String listId,
+    String? filter,
+    String? tag,
     int limit = 20,
     String? cursor,
     bool forceRefresh = false,
@@ -528,6 +526,8 @@ class AlkokhMobileClient {
       query: {
         'list': listId,
         'limit': limit,
+        if (filter != null && filter.isNotEmpty) 'filter': filter,
+        if (tag != null && tag.isNotEmpty) 'tag': tag,
         if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
       },
       forceRefresh: forceRefresh,

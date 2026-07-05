@@ -397,6 +397,8 @@ void main() {
           '/api/method/pet_app.api.mobile.catalog.list_products',
         );
         expect(request.url.queryParameters['limit'], '20');
+        expect(request.url.queryParameters['filter'], 'dog');
+        expect(request.url.queryParameters['tag'], 'best-seller');
         return _json({
           'message': {
             'ok': true,
@@ -419,14 +421,14 @@ void main() {
       }),
     );
 
-    final page = await client.listProducts();
+    final page = await client.listProducts(filter: 'dog', tag: 'best-seller');
 
     expect(page.items.single.id, 'Product-001');
     expect(page.items.single.category?.name, 'Food');
     expect(page.items.single.brand?.name, 'Brand');
   });
 
-  test('getHomeV2 and listHomeProducts parse block contract', () async {
+  test('getHome and listHomeProducts parse block contract', () async {
     var call = 0;
     final client = AlkokhMobileClient(
       httpClient: MockClient((request) async {
@@ -506,6 +508,8 @@ void main() {
               '/api/method/pet_app.api.mobile.catalog.list_products',
             );
             expect(request.url.queryParameters['list'], 'best-sellers');
+            expect(request.url.queryParameters['filter'], 'cat');
+            expect(request.url.queryParameters['tag'], 'recently-added');
             expect(request.url.queryParameters['cursor'], '20');
             return _json({
               'message': {
@@ -537,7 +541,7 @@ void main() {
       }),
     );
 
-    final home = await client.getHomeV2(lang: 'en');
+    final home = await client.getHome(lang: 'en');
     expect(home.version, 2);
     expect(home.filters.first.key, 'all');
     expect(
@@ -549,6 +553,8 @@ void main() {
 
     final page = await client.listHomeProducts(
       listId: 'best-sellers',
+      filter: 'cat',
+      tag: 'recently-added',
       cursor: '20',
     );
     expect(page.items.single.price, 25000);

@@ -85,12 +85,12 @@ final products = await client.listProducts(
 );
 ```
 
-## Home V2 Blocks
+## Home Blocks
 
-Use the new block-based home method for the mobile home screen:
+Use the block-based home method for the mobile home screen:
 
 ```dart
-final home = await client.getHomeV2();
+final home = await client.getHome();
 
 for (final block in home.blocks) {
   final carousel = block.bannerCarousel;
@@ -103,7 +103,10 @@ for (final block in home.blocks) {
   } else if (productList != null) {
     // render productList.products
     if (productList.seeAll) {
-      final nextPage = await client.listHomeProducts(listId: block.id);
+      final nextPage = await client.listHomeProducts(
+        listId: block.id,
+        filter: selectedFilter == 'all' ? null : selectedFilter,
+      );
     }
   } else if (categoryGrid != null) {
     // render categoryGrid.categories
@@ -113,7 +116,7 @@ for (final block in home.blocks) {
 }
 ```
 
-Unknown block types stay available as `block.type` and `block.data`; skip them silently. Banners are managed in backend `Mobile Home Banner` records. Product images are resolved from `Product.image` first, then the first public `File` attachment on the Product.
+Unknown block types stay available as `block.type` and `block.data`; skip them silently. Banners are managed in backend `Mobile Home Banner` records. Product images are resolved from `Product.image` first, then the first public `File` attachment on the Product. Home chip keys can also be passed to `listHomeProducts(filter: ...)` or `listProducts(filter: ...)`; use `null` for the `all` chip.
 
 ## Request IDs
 

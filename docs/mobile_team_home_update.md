@@ -1,20 +1,24 @@
-# Mobile Team Update: Home V2 And Banners
+# Mobile Team Update: Home And Banners
 
-This SDK update adds support for the new block-based mobile Home v2 response and backend-managed banners.
+This SDK update makes `client.getHome()` the single Home API in the SDK. It returns the block-based Home response with backend-managed banners.
 
 ## What Changed
 
 New SDK methods:
 
 ```dart
-final home = await client.getHomeV2();
+final home = await client.getHome();
 final page = await client.listHomeProducts(listId: 'best-sellers');
+final dogPage = await client.listHomeProducts(
+  listId: 'best-sellers',
+  filter: 'dog',
+);
 ```
 
 New typed models:
 
 ```dart
-HomeV2
+MobileHome
 HomeFilter
 HomeBlock
 HomeBanner
@@ -24,7 +28,7 @@ HomeCategoryCard
 HomeBrand
 ```
 
-New supported Home v2 block types:
+Supported Home block types:
 
 ```text
 banner_carousel
@@ -56,12 +60,12 @@ Then run:
 flutter pub upgrade alkokh_mobile_sdk
 ```
 
-## New Home Usage
+## Home Usage
 
-Use this instead of the old `getHome()` for the mobile home screen:
+Use this for the mobile home screen:
 
 ```dart
-final home = await client.getHomeV2();
+final home = await client.getHome();
 
 for (final block in home.blocks) {
   final carousel = block.bannerCarousel;
@@ -97,6 +101,7 @@ Load more products with:
 ```dart
 final page = await client.listHomeProducts(
   listId: block.id,
+  filter: selectedFilter == 'all' ? null : selectedFilter,
   limit: 20,
   cursor: nextCursor,
 );
@@ -141,7 +146,7 @@ Suggested handling:
 
 ## Product Card Notes
 
-Home v2 product cards include:
+Home product cards include:
 
 ```dart
 product.id
@@ -169,23 +174,43 @@ other
 
 Use it for the Home chips. The key `all` is chip behavior only and is not sent as a product value.
 
+For see-all/infinite-scroll pages, pass the selected chip to the SDK:
+
+```dart
+final page = await client.listHomeProducts(
+  listId: block.id,
+  filter: selectedFilter == 'all' ? null : selectedFilter,
+  cursor: nextCursor,
+);
+```
+
+The same filter is also available on the general catalog list:
+
+```dart
+final page = await client.listProducts(
+  filter: 'cat',
+  tag: 'recently-added',
+);
+```
+
+`filter` is the species/chip key. `tag` matches exact comma-separated `Product.tags` values from the backend, such as `recently-added`, `best-seller`, or `back-in-stock`.
+
 ## Cache
 
-`getHomeV2()` uses the SDK safe public-read cache when `cacheEnabled: true`.
+`getHome()` uses the SDK safe public-read cache when `cacheEnabled: true`.
 
 Use:
 
 ```dart
-final freshHome = await client.getHomeV2(forceRefresh: true);
+final freshHome = await client.getHome(forceRefresh: true);
 ```
 
 to bypass cache.
 
 ## Important Notes
 
-- `getHome()` still exists for old code, but the new mobile home screen should use `getHomeV2()`.
-- No favorite/cart/user-specific state is included in Home v2.
+- `getHome()` is the only Home method exposed by the SDK.
+- No favorite/cart/user-specific state is included in Home.
 - Banners are managed by backend/admin through `Mobile Home Banner`.
 - Product images come from backend Product image data.
 - Unknown blocks should be skipped, not treated as errors.
-

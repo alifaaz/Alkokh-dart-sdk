@@ -1,13 +1,13 @@
-# Home V2 Banner JSON Contract
+# Home Banner JSON Contract
 
-Use this contract for rendering banners from the mobile Home v2 endpoint.
+Use this contract for rendering banners from the mobile Home endpoint.
 
 ## Endpoint
 
 The SDK method is:
 
 ```dart
-final home = await client.getHomeV2();
+final home = await client.getHome();
 ```
 
 Raw backend method:
@@ -38,7 +38,7 @@ Frontend should use `message.data`.
 
 ## Banner Block Types
 
-Home v2 can return two banner block types:
+Home can return two banner block types:
 
 ```text
 banner_carousel
@@ -166,7 +166,10 @@ For banner actions with:
 Use:
 
 ```dart
-final page = await client.listHomeProducts(listId: 'best-sellers');
+final page = await client.listHomeProducts(
+  listId: 'best-sellers',
+  filter: selectedFilter == 'all' ? null : selectedFilter,
+);
 ```
 
 Supported list ids:
@@ -182,7 +185,6 @@ back-in-stock
 - Skip unknown block types.
 - Skip a banner if `image` is empty.
 - Skip a banner if `action.type` or `action.value` is empty.
-- Do not expect favorite/cart/user state in Home v2.
-- Cache Home v2 using `updated_at` and `cache_ttl_seconds`.
+- Do not expect favorite/cart/user state in Home.
+- Cache Home using `updated_at` and `cache_ttl_seconds`.
 - Banner images come from backend `Mobile Home Banner` records.
-
