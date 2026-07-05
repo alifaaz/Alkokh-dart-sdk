@@ -426,6 +426,136 @@ void main() {
     expect(page.items.single.brand?.name, 'Brand');
   });
 
+  test('getHomeV2 and listHomeProducts parse block contract', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      httpClient: MockClient((request) async {
+        switch (call++) {
+          case 0:
+            expect(
+              request.url.path,
+              '/api/method/pet_app.api.mobile.catalog.home_v2',
+            );
+            expect(request.url.queryParameters['lang'], 'en');
+            return _json({
+              'message': {
+                'ok': true,
+                'data': {
+                  'version': 2,
+                  'updated_at': '2026-07-02T18:30:00Z',
+                  'cache_ttl_seconds': 300,
+                  'locale': 'en',
+                  'filters': [
+                    {'key': 'all', 'label': 'All'},
+                    {'key': 'dog', 'label': 'Dog'},
+                  ],
+                  'blocks': [
+                    {
+                      'id': 'hero-banners',
+                      'type': 'banner_carousel',
+                      'data': {
+                        'banners': [
+                          {
+                            'id': 'summer',
+                            'image': 'https://cdn.example.test/banner.png',
+                            'title': 'Summer',
+                            'subtitle': 'Deals',
+                            'button_title': 'Shop',
+                            'gradient': ['#FF9A56', '#FF5E62'],
+                            'action': {'type': 'list', 'value': 'best-sellers'},
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      'id': 'best-sellers',
+                      'type': 'product_list',
+                      'data': {
+                        'title': 'Best Sellers',
+                        'see_all': true,
+                        'respects_filter': true,
+                        'products': [
+                          {
+                            'id': 'PROD-1',
+                            'name': 'Dog Food',
+                            'image': 'https://cdn.example.test/prod.png',
+                            'price': 24000,
+                            'original_price': 30000,
+                            'currency': 'IQD',
+                            'unit': '2 kg',
+                            'in_stock': true,
+                            'rating': 4.6,
+                            'rating_count': 41,
+                            'filter': 'dog',
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      'id': 'future',
+                      'type': 'future_block',
+                      'data': {'kept': true},
+                    },
+                  ],
+                },
+              },
+            });
+          case 1:
+            expect(
+              request.url.path,
+              '/api/method/pet_app.api.mobile.catalog.list_products',
+            );
+            expect(request.url.queryParameters['list'], 'best-sellers');
+            expect(request.url.queryParameters['cursor'], '20');
+            return _json({
+              'message': {
+                'ok': true,
+                'data': {
+                  'items': [
+                    {
+                      'id': 'PROD-2',
+                      'name': 'Cat Food',
+                      'image': 'https://cdn.example.test/cat.png',
+                      'price': 30000,
+                      'effective_price': 25000,
+                      'original_price': 30000,
+                      'currency': 'IQD',
+                      'unit': '1 kg',
+                      'in_stock': true,
+                      'rating': 4.2,
+                      'rating_count': 10,
+                      'filter': 'cat',
+                    },
+                  ],
+                  'hasMore': false,
+                  'nextCursor': null,
+                },
+              },
+            });
+        }
+        fail('Unexpected request ${request.url.path}');
+      }),
+    );
+
+    final home = await client.getHomeV2(lang: 'en');
+    expect(home.version, 2);
+    expect(home.filters.first.key, 'all');
+    expect(
+      home.blocks.first.bannerCarousel?.banners.single.action.value,
+      'best-sellers',
+    );
+    expect(home.blocks[1].productList?.products.single.originalPrice, 30000);
+    expect(home.blocks[2].isKnown, isFalse);
+
+    final page = await client.listHomeProducts(
+      listId: 'best-sellers',
+      cursor: '20',
+    );
+    expect(page.items.single.price, 25000);
+    expect(page.items.single.filter, 'cat');
+    expect(call, 2);
+  });
+
   test('getMe sends Bearer token and parses profile', () async {
     final store = MemoryTokenStore();
     await store.write(

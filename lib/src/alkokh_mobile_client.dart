@@ -474,7 +474,17 @@ class AlkokhMobileClient {
     return CatalogHome.fromJson(data);
   }
 
+  Future<HomeV2> getHomeV2({String? lang, bool forceRefresh = false}) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.home_v2',
+      query: {if (lang != null && lang.isNotEmpty) 'lang': lang},
+      forceRefresh: forceRefresh,
+    );
+    return HomeV2.fromJson(data);
+  }
+
   Future<PagedResult<CatalogProduct>> listProducts({
+    String? listId,
     String? category,
     String? brandId,
     num? minPrice,
@@ -486,6 +496,7 @@ class AlkokhMobileClient {
     bool forceRefresh = false,
   }) async {
     final query = <String, Object?>{'limit': limit};
+    if (listId != null && listId.isNotEmpty) query['list'] = listId;
     if (category != null && category.isNotEmpty) query['category'] = category;
     if (brandId != null && brandId.isNotEmpty) query['brandId'] = brandId;
     if (minPrice != null) query['minPrice'] = minPrice;
@@ -501,6 +512,28 @@ class AlkokhMobileClient {
     );
     return PagedResult(
       items: _listOfMaps(data['items']).map(CatalogProduct.fromJson).toList(),
+      hasMore: data['hasMore'] == true,
+      nextCursor: data['nextCursor'] as String?,
+    );
+  }
+
+  Future<PagedResult<HomeProductCard>> listHomeProducts({
+    required String listId,
+    int limit = 20,
+    String? cursor,
+    bool forceRefresh = false,
+  }) async {
+    final data = await _getPublicCached(
+      'pet_app.api.mobile.catalog.list_products',
+      query: {
+        'list': listId,
+        'limit': limit,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+      forceRefresh: forceRefresh,
+    );
+    return PagedResult(
+      items: _listOfMaps(data['items']).map(HomeProductCard.fromJson).toList(),
       hasMore: data['hasMore'] == true,
       nextCursor: data['nextCursor'] as String?,
     );
@@ -1213,6 +1246,10 @@ class AlkokhMobileClient {
     );
     return _cacheStore.deleteWhere((key) {
       if (key == productDetailKey) return true;
+      if (key.startsWith('pet_app.api.mobile.catalog.home_v2')) return true;
+      if (key.startsWith('pet_app.api.mobile.catalog.list_products')) {
+        return true;
+      }
       return key.startsWith(
             'pet_app.api.mobile.reviews.list_product_reviews?',
           ) &&

@@ -739,12 +739,17 @@ class CatalogProduct {
     this.image,
     this.price,
     this.discountedPrice,
+    this.originalPrice,
     this.currency,
+    this.unit,
     this.qty,
     this.category,
     this.brand,
     this.itemCode,
     this.reviewSummary,
+    this.rating,
+    this.ratingCount,
+    this.filter,
     this.tags = const [],
   });
 
@@ -755,14 +760,19 @@ class CatalogProduct {
   final String? image;
   final num? price;
   final num? discountedPrice;
+  final num? originalPrice;
   final num effectivePrice;
   final String? currency;
+  final String? unit;
   final bool inStock;
   final num? qty;
   final CatalogCategory? category;
   final CatalogBrand? brand;
   final String? itemCode;
   final ProductReviewSummary? reviewSummary;
+  final num? rating;
+  final int? ratingCount;
+  final String? filter;
   final List<String> tags;
   final Map<String, Object?> raw;
 
@@ -775,8 +785,10 @@ class CatalogProduct {
       image: json['image'] as String?,
       price: _readNum(json['price']),
       discountedPrice: _readNum(json['discounted_price']),
+      originalPrice: _readNum(json['original_price']),
       effectivePrice: _readNum(json['effective_price']) ?? 0,
       currency: json['currency'] as String?,
+      unit: json['unit'] as String?,
       inStock: json['in_stock'] == true,
       qty: _readNum(json['qty']),
       category: json['category'] is Map
@@ -789,6 +801,9 @@ class CatalogProduct {
       reviewSummary: json['review_summary'] is Map
           ? ProductReviewSummary.fromJson(_stringMap(json['review_summary']))
           : null,
+      rating: _readNum(json['rating']),
+      ratingCount: _readInt(json['rating_count']),
+      filter: json['filter'] as String?,
       tags: (json['tags'] as List? ?? const [])
           .map((value) => value.toString())
           .toList(),
@@ -1055,6 +1070,314 @@ class CatalogSection {
       key: json['key'] as String? ?? '',
       title: json['title'] as String? ?? '',
       items: _listOfMaps(json['items']).map(CatalogProduct.fromJson).toList(),
+    );
+  }
+}
+
+class HomeV2 {
+  const HomeV2({
+    required this.version,
+    required this.updatedAt,
+    required this.cacheTtlSeconds,
+    required this.locale,
+    required this.filters,
+    required this.blocks,
+    required this.raw,
+  });
+
+  final int version;
+  final String updatedAt;
+  final int cacheTtlSeconds;
+  final String locale;
+  final List<HomeFilter> filters;
+  final List<HomeBlock> blocks;
+  final Map<String, Object?> raw;
+
+  static HomeV2 fromJson(Map<String, Object?> json) {
+    return HomeV2(
+      version: _readInt(json['version']) ?? 0,
+      updatedAt: json['updated_at']?.toString() ?? '',
+      cacheTtlSeconds: _readInt(json['cache_ttl_seconds']) ?? 0,
+      locale: json['locale'] as String? ?? 'en',
+      filters: _listOfMaps(json['filters']).map(HomeFilter.fromJson).toList(),
+      blocks: _listOfMaps(json['blocks']).map(HomeBlock.fromJson).toList(),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class HomeFilter {
+  const HomeFilter({required this.key, required this.label});
+
+  final String key;
+  final String label;
+
+  static HomeFilter fromJson(Map<String, Object?> json) {
+    return HomeFilter(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+    );
+  }
+}
+
+class HomeBlock {
+  const HomeBlock({
+    required this.id,
+    required this.type,
+    required this.data,
+    required this.raw,
+  });
+
+  final String id;
+  final String type;
+  final Map<String, Object?> data;
+  final Map<String, Object?> raw;
+
+  bool get isKnown =>
+      bannerCarousel != null ||
+      singleBanner != null ||
+      productList != null ||
+      categoryGrid != null ||
+      brandStrip != null;
+
+  HomeBannerCarouselData? get bannerCarousel =>
+      type == 'banner_carousel' ? HomeBannerCarouselData.fromJson(data) : null;
+
+  HomeSingleBannerData? get singleBanner =>
+      type == 'single_banner' ? HomeSingleBannerData.fromJson(data) : null;
+
+  HomeProductListData? get productList =>
+      type == 'product_list' ? HomeProductListData.fromJson(data) : null;
+
+  HomeCategoryGridData? get categoryGrid =>
+      type == 'category_grid' ? HomeCategoryGridData.fromJson(data) : null;
+
+  HomeBrandStripData? get brandStrip =>
+      type == 'brand_strip' ? HomeBrandStripData.fromJson(data) : null;
+
+  static HomeBlock fromJson(Map<String, Object?> json) {
+    return HomeBlock(
+      id: json['id'] as String? ?? '',
+      type: json['type'] as String? ?? '',
+      data: _stringMap(json['data']),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class HomeBannerCarouselData {
+  const HomeBannerCarouselData({required this.banners});
+
+  final List<HomeBanner> banners;
+
+  static HomeBannerCarouselData fromJson(Map<String, Object?> json) {
+    return HomeBannerCarouselData(
+      banners: _listOfMaps(json['banners']).map(HomeBanner.fromJson).toList(),
+    );
+  }
+}
+
+class HomeSingleBannerData {
+  const HomeSingleBannerData({required this.banner});
+
+  final HomeBanner banner;
+
+  static HomeSingleBannerData fromJson(Map<String, Object?> json) {
+    return HomeSingleBannerData(
+      banner: HomeBanner.fromJson(_stringMap(json['banner'])),
+    );
+  }
+}
+
+class HomeBanner {
+  const HomeBanner({
+    required this.id,
+    required this.image,
+    required this.title,
+    required this.subtitle,
+    required this.buttonTitle,
+    required this.gradient,
+    required this.action,
+    required this.raw,
+  });
+
+  final String id;
+  final String image;
+  final String title;
+  final String subtitle;
+  final String buttonTitle;
+  final List<String> gradient;
+  final HomeAction action;
+  final Map<String, Object?> raw;
+
+  static HomeBanner fromJson(Map<String, Object?> json) {
+    return HomeBanner(
+      id: json['id'] as String? ?? '',
+      image: json['image'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      subtitle: json['subtitle'] as String? ?? '',
+      buttonTitle: json['button_title'] as String? ?? '',
+      gradient: (json['gradient'] as List? ?? const [])
+          .map((value) => value.toString())
+          .toList(),
+      action: HomeAction.fromJson(_stringMap(json['action'])),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class HomeAction {
+  const HomeAction({required this.type, required this.value});
+
+  final String type;
+  final String value;
+
+  static HomeAction fromJson(Map<String, Object?> json) {
+    return HomeAction(
+      type: json['type'] as String? ?? '',
+      value: json['value']?.toString() ?? '',
+    );
+  }
+}
+
+class HomeProductListData {
+  const HomeProductListData({
+    required this.title,
+    required this.seeAll,
+    required this.respectsFilter,
+    required this.products,
+  });
+
+  final String title;
+  final bool seeAll;
+  final bool respectsFilter;
+  final List<HomeProductCard> products;
+
+  static HomeProductListData fromJson(Map<String, Object?> json) {
+    return HomeProductListData(
+      title: json['title'] as String? ?? '',
+      seeAll: json['see_all'] == true,
+      respectsFilter: json['respects_filter'] == true,
+      products: _listOfMaps(
+        json['products'],
+      ).map(HomeProductCard.fromJson).toList(),
+    );
+  }
+}
+
+class HomeProductCard {
+  const HomeProductCard({
+    required this.id,
+    required this.name,
+    required this.image,
+    required this.price,
+    required this.currency,
+    required this.unit,
+    required this.inStock,
+    required this.rating,
+    required this.ratingCount,
+    required this.filter,
+    required this.raw,
+    this.originalPrice,
+  });
+
+  final String id;
+  final String name;
+  final String image;
+  final num price;
+  final num? originalPrice;
+  final String currency;
+  final String unit;
+  final bool inStock;
+  final num rating;
+  final int ratingCount;
+  final String filter;
+  final Map<String, Object?> raw;
+
+  static HomeProductCard fromJson(Map<String, Object?> json) {
+    final effectivePrice = _readNum(json['effective_price']);
+    return HomeProductCard(
+      id: (json['id'] ?? json['product_id'] ?? '') as String,
+      name: json['name'] as String? ?? '',
+      image: json['image'] as String? ?? '',
+      price: effectivePrice ?? _readNum(json['price']) ?? 0,
+      originalPrice: _readNum(json['original_price']),
+      currency: json['currency'] as String? ?? 'IQD',
+      unit: json['unit'] as String? ?? '',
+      inStock: json['in_stock'] == true,
+      rating: _readNum(json['rating']) ?? 0,
+      ratingCount: _readInt(json['rating_count']) ?? 0,
+      filter: json['filter'] as String? ?? 'other',
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class HomeCategoryGridData {
+  const HomeCategoryGridData({required this.title, required this.categories});
+
+  final String title;
+  final List<HomeCategoryCard> categories;
+
+  static HomeCategoryGridData fromJson(Map<String, Object?> json) {
+    return HomeCategoryGridData(
+      title: json['title'] as String? ?? '',
+      categories: _listOfMaps(
+        json['categories'],
+      ).map(HomeCategoryCard.fromJson).toList(),
+    );
+  }
+}
+
+class HomeCategoryCard {
+  const HomeCategoryCard({
+    required this.id,
+    required this.title,
+    required this.emoji,
+    required this.backgroundColor,
+  });
+
+  final String id;
+  final String title;
+  final String emoji;
+  final String backgroundColor;
+
+  static HomeCategoryCard fromJson(Map<String, Object?> json) {
+    return HomeCategoryCard(
+      id: json['id'] as String? ?? '',
+      title: (json['title'] ?? json['name'] ?? '').toString(),
+      emoji: json['emoji'] as String? ?? '',
+      backgroundColor: json['background_color'] as String? ?? '#FFFFFF',
+    );
+  }
+}
+
+class HomeBrandStripData {
+  const HomeBrandStripData({required this.title, required this.brands});
+
+  final String title;
+  final List<HomeBrand> brands;
+
+  static HomeBrandStripData fromJson(Map<String, Object?> json) {
+    return HomeBrandStripData(
+      title: json['title'] as String? ?? '',
+      brands: _listOfMaps(json['brands']).map(HomeBrand.fromJson).toList(),
+    );
+  }
+}
+
+class HomeBrand {
+  const HomeBrand({required this.id, required this.name, required this.image});
+
+  final String id;
+  final String name;
+  final String image;
+
+  static HomeBrand fromJson(Map<String, Object?> json) {
+    return HomeBrand(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      image: json['image'] as String? ?? '',
     );
   }
 }

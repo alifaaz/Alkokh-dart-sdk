@@ -85,6 +85,36 @@ final products = await client.listProducts(
 );
 ```
 
+## Home V2 Blocks
+
+Use the new block-based home method for the mobile home screen:
+
+```dart
+final home = await client.getHomeV2();
+
+for (final block in home.blocks) {
+  final carousel = block.bannerCarousel;
+  final productList = block.productList;
+  final categoryGrid = block.categoryGrid;
+  final brandStrip = block.brandStrip;
+
+  if (carousel != null) {
+    // render carousel.banners
+  } else if (productList != null) {
+    // render productList.products
+    if (productList.seeAll) {
+      final nextPage = await client.listHomeProducts(listId: block.id);
+    }
+  } else if (categoryGrid != null) {
+    // render categoryGrid.categories
+  } else if (brandStrip != null) {
+    // render brandStrip.brands
+  }
+}
+```
+
+Unknown block types stay available as `block.type` and `block.data`; skip them silently. Banners are managed in backend `Mobile Home Banner` records. Product images are resolved from `Product.image` first, then the first public `File` attachment on the Product.
+
 ## Request IDs
 
 Pass a `requestIdProvider` if the app wants to trace requests through backend logs. The SDK sends it as `X-Request-Id`.

@@ -39,11 +39,12 @@ final session = await client.signIn(
 );
 
 final orders = await client.listOrders();
-final home = await client.getHome();
+final home = await client.getHomeV2();
 final products = await client.listProducts(category: 'Products');
 final nextProducts = products.hasMore
     ? await client.listProducts(cursor: products.nextCursor)
     : null;
+final bestSellerPage = await client.listHomeProducts(listId: 'best-sellers');
 final favorites = await client.listFavorites();
 final pets = await client.listPets();
 final addresses = await client.listAddresses();
@@ -60,7 +61,7 @@ For Flutter, use `KeyValueTokenStore` with `flutter_secure_storage` and pass it 
 - Profile: current mobile Guardian profile, profile update, password change, phone change, avatar upload, account delete.
 - Addresses: list, create, update, default, soft-delete, supported cities, reverse placeholder.
 - Config/content: app config, support contact, static content placeholders.
-- Catalog/search: home, products, product detail, categories, brands, search, suggestions.
+- Catalog/search: home v1, block-based home v2 with banners, products, product detail, categories, brands, search, suggestions.
 - Favorites/reviews/recent search: favorite toggle/list/remove, product review list/upsert, recent search list/save/clear.
 - Devices: register/delete FCM device tokens; no push sending yet.
 - Pets: list, detail, create, update, disable/archive, photo upload, medical timeline, documents, vaccination/deworming CRUD.
@@ -89,6 +90,23 @@ const config = AlkokhMobileConfig(
 You can still pass `baseUrl`; when it is set, it wins over `scheme`, `host`, and `port`.
 
 `cacheEnabled: true` caches safe public reads only: config, support/content, home, catalog, search, suggestions, and product reviews. Auth, profile, pets, favorites, orders, devices, uploads, and all `POST` calls are not cached by default.
+
+## Home V2
+
+Use `getHomeV2()` for the frontend block contract. Unknown block types are preserved in `HomeBlock.raw`/`HomeBlock.data`, so Flutter can skip them safely.
+
+```dart
+final home = await client.getHomeV2();
+
+for (final block in home.blocks) {
+  final productList = block.productList;
+  if (productList != null && productList.seeAll) {
+    final page = await client.listHomeProducts(listId: block.id);
+  }
+}
+```
+
+Banners come from backend `Mobile Home Banner` records. Product cards use Product images first, then public Product `File` attachments as fallback.
 
 ## Test
 
