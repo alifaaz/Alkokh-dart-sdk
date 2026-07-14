@@ -1,5 +1,7 @@
 # Home Banner JSON Contract
 
+> Backend contract source: `apps/pet_app/docs/vue-admin-mobile-home-banner.md`, with the broader mobile API contract in `apps/pet_app/docs/MOBILE_API_README.md`. This SDK doc is a consumer rendering note, not backend authority.
+
 Use this contract for rendering banners from the mobile Home endpoint.
 
 ## Endpoint

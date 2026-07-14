@@ -1,5 +1,7 @@
 # Alkokh Mobile SDK Usage
 
+> Backend contract source: `apps/pet_app/docs/MOBILE_API_README.md` in the backend repo. This SDK usage guide is a consumer note; if it conflicts with the backend contract, the backend contract wins.
+
 The SDK talks to Frappe method endpoints internally. The Flutter app should use SDK methods directly and should not build `/v1/...` REST paths.
 
 ## Install

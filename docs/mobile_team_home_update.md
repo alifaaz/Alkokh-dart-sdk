@@ -1,5 +1,7 @@
 # Mobile Team Update: Home And Banners
 
+> Backend contract source: `apps/pet_app/docs/vue-admin-mobile-home-banner.md`, with the broader mobile API contract in `apps/pet_app/docs/MOBILE_API_README.md`. This SDK doc is a consumer note for Flutter integration, not backend authority.
+
 This SDK update makes `client.getHome()` the single Home API in the SDK. It returns the block-based Home response with backend-managed banners.
 
 ## What Changed

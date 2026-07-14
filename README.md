@@ -1,5 +1,7 @@
 # Alkokh Mobile SDK
 
+> Backend contract source: `apps/pet_app/docs/MOBILE_API_README.md` in the backend repo. This SDK README is a consumer note; if it conflicts with the backend contract, the backend contract wins.
+
 Pure Dart SDK for the currently implemented Alkokh mobile API.
 
 The SDK hides Frappe method URLs and response wrappers from the Flutter app. It treats OAuth access tokens as opaque strings and keeps mobile orders mapped to ERPNext `Sales Order`.
