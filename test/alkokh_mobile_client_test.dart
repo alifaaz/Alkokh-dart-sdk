@@ -1383,6 +1383,419 @@ void main() {
     );
   });
 
+  test('getAvailableAppointmentSlots maps backend slots', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(baseUrl: 'https://api.example.test'),
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.get_available_slots',
+        );
+        expect(request.url.queryParameters['date'], '2026-07-24');
+        expect(request.url.queryParameters['service_type'], 'Visit');
+        expect(request.url.queryParameters['duration_minutes'], '30');
+        expect(request.headers['Authorization'], 'Bearer access');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'slots': [
+                {
+                  'start': '2026-07-24 09:00:00',
+                  'end': '2026-07-24 09:30:00',
+                  'doctor': 'DOC-001',
+                  'doctor_name': 'Dr Sara',
+                  'room': 'ROOM-1',
+                },
+              ],
+            },
+          },
+        });
+      }),
+    );
+
+    final slots = await client.getAvailableAppointmentSlots(
+      date: DateTime(2026, 7, 24),
+      durationMinutes: 30,
+    );
+
+    expect(slots, hasLength(1));
+    expect(slots.single.start, '2026-07-24 09:00:00');
+    expect(slots.single.doctorName, 'Dr Sara');
+  });
+
+  test('listUpcomingAppointments maps guardian portal appointments', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.guardian_portal.get_upcoming_appointments',
+        );
+        expect(request.url.queryParameters['limit'], '5');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'appointments': [
+                {
+                  'name': 'APPT-001',
+                  'status': 'Open',
+                  'scheduled_time': '2026-07-24 10:00:00',
+                  'custom_pet': 'PET-001',
+                  'pet_name': 'Loli',
+                  'custom_guardian': 'GUARDIAN-001',
+                  'guardian_name': 'Mostafa',
+                  'custom_appointment_type': 'visit',
+                },
+              ],
+            },
+          },
+        });
+      }),
+    );
+
+    final appointments = await client.listUpcomingAppointments(limit: 5);
+
+    expect(appointments.single.id, 'APPT-001');
+    expect(appointments.single.pet, 'PET-001');
+    expect(appointments.single.petName, 'Loli');
+    expect(appointments.single.appointmentType, 'visit');
+  });
+
+  test(
+    'listAppointments defaults to logged-in guardian portal endpoint',
+    () async {
+      final store = await _authedStore();
+      final client = AlkokhMobileClient(
+        tokenStore: store,
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.path,
+            '/api/method/pet_app.api.guardian_portal.get_appointments',
+          );
+          expect(request.url.queryParameters['pet'], 'PET-001');
+          expect(request.url.queryParameters['status'], 'Open');
+          expect(request.url.queryParameters['future_only'], '1');
+          expect(request.url.queryParameters['date_from'], '2026-07-24');
+          return _json({
+            'message': {
+              'ok': true,
+              'data': {
+                'appointments': [
+                  {
+                    'name': 'APPT-002',
+                    'status': 'Open',
+                    'scheduled_time': '2026-07-24 12:00:00',
+                    'custom_pet': 'PET-001',
+                  },
+                ],
+              },
+            },
+          });
+        }),
+      );
+
+      final appointments = await client.listAppointments(
+        petId: 'PET-001',
+        status: 'Open',
+        futureOnly: true,
+        dateFrom: DateTime(2026, 7, 24),
+      );
+
+      expect(appointments.single.id, 'APPT-002');
+    },
+  );
+
+  test('listAppointments can call filtered scheduling endpoint', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.list_appointments',
+        );
+        expect(request.url.queryParameters['guardian'], 'GUARDIAN-001');
+        expect(request.url.queryParameters['customer'], 'Customer-001');
+        expect(request.url.queryParameters['pet'], 'PET-001');
+        expect(request.url.queryParameters['limit'], '10');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'appointments': [
+                {
+                  'name': 'APPT-003',
+                  'status': 'Open',
+                  'scheduled_time': '2026-07-25 12:00:00',
+                  'custom_guardian': 'GUARDIAN-001',
+                  'custom_customer': 'Customer-001',
+                  'custom_pet': 'PET-001',
+                },
+              ],
+            },
+          },
+        });
+      }),
+    );
+
+    final appointments = await client.listAppointments(
+      guardianId: 'GUARDIAN-001',
+      customerId: 'Customer-001',
+      petId: 'PET-001',
+      limit: 10,
+      currentUserOnly: false,
+    );
+
+    expect(appointments.single.guardian, 'GUARDIAN-001');
+    expect(appointments.single.customer, 'Customer-001');
+  });
+
+  test('listPetCareServices maps guardian services with details', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.guardian_portal.get_pet_care_services',
+        );
+        expect(request.url.queryParameters['pet'], 'PET-001');
+        expect(request.url.queryParameters['status'], 'pending');
+        expect(
+          request.url.queryParameters['category'],
+          'CategoryCareServices-0001',
+        );
+        expect(request.url.queryParameters['date_from'], '2026-07-01');
+        expect(request.url.queryParameters['date_to'], '2026-07-31');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'services': [
+                {
+                  'name': 'PetCareService-00001',
+                  'service_id': 'PetCareService-00001',
+                  'pet_service_name': 'Grooming',
+                  'status': 'pending',
+                  'pet_id': 'PET-001',
+                  'pet_name': 'Loli',
+                  'guardian_id': 'GUARDIAN-001',
+                  'category': 'CategoryCareServices-0001',
+                  'category_name': 'Pet care',
+                  'care_service_id': 'CareService-00001',
+                  'service_option': 'CSBO-00001',
+                  'price': 25000,
+                  'due_date': '2026-07-24',
+                  'care_service': {
+                    'name': 'CareService-00001',
+                    'service_name': 'Grooming',
+                    'arabic_name': 'العناية',
+                    'default_price': 25000,
+                    'description': 'Full grooming',
+                  },
+                  'category_details': {
+                    'name': 'CategoryCareServices-0001',
+                    'category_name': 'Pet care',
+                    'arabic_name': 'رعاية الحيوانات',
+                  },
+                  'service_option_details': {
+                    'name': 'CSBO-00001',
+                    'option_label': 'Small dog',
+                    'default_rate': 25000,
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }),
+    );
+
+    final services = await client.listPetCareServices(
+      petId: 'PET-001',
+      status: 'pending',
+      category: 'CategoryCareServices-0001',
+      dateFrom: DateTime(2026, 7),
+      dateTo: DateTime(2026, 7, 31),
+    );
+
+    expect(services.single.id, 'PetCareService-00001');
+    expect(services.single.petName, 'Loli');
+    expect(services.single.template?.arabicName, 'العناية');
+    expect(services.single.categoryDetails?.categoryName, 'Pet care');
+    expect(services.single.optionDetails?.optionLabel, 'Small dog');
+  });
+
+  test('getPetCareService fetches one guardian service', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.guardian_portal.get_pet_care_service',
+        );
+        expect(request.url.queryParameters['service'], 'PetCareService-00001');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'service': {
+                'name': 'PetCareService-00001',
+                'service_name': 'Grooming',
+                'status': 'completed',
+                'care_service': {'name': 'CareService-00001'},
+              },
+            },
+          },
+        });
+      }),
+    );
+
+    final service = await client.getPetCareService('PetCareService-00001');
+
+    expect(service.id, 'PetCareService-00001');
+    expect(service.status, 'completed');
+  });
+
+  test('bookAppointment resolves current guardian when omitted', () async {
+    final store = await _authedStore();
+    var call = 0;
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        call++;
+        expect(request.headers['Authorization'], 'Bearer access');
+        if (call == 1) {
+          expect(request.url.path, '/api/method/pet_app.api.mobile.profile.me');
+          return _json({
+            'message': {
+              'ok': true,
+              'data': {'guardian_id': 'GUARDIAN-001'},
+            },
+          });
+        }
+
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.book_appointment',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        final data = body['data'] as Map<String, Object?>;
+        expect(data['pet'], 'PET-001');
+        expect(data['guardian'], 'GUARDIAN-001');
+        expect(data['scheduled_time'], '2026-07-24 10:15:00');
+        expect(data['appointment_type'], 'visit');
+        expect(data['idempotency_key'], 'appt-1');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'appointment': {
+                'name': 'APPT-001',
+                'status': 'Open',
+                'scheduled_time': '2026-07-24 10:15:00',
+                'pet': 'PET-001',
+                'guardian': 'GUARDIAN-001',
+                'duration_minutes': 30,
+              },
+            },
+          },
+        });
+      }),
+    );
+
+    final appointment = await client.bookAppointment(
+      petId: 'PET-001',
+      scheduledTime: DateTime(2026, 7, 24, 10, 15),
+      idempotencyKey: 'appt-1',
+    );
+
+    expect(appointment.id, 'APPT-001');
+    expect(appointment.durationMinutes, 30);
+    expect(call, 2);
+  });
+
+  test('rescheduleAppointment posts appointment update payload', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.reschedule_appointment',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        final data = body['data'] as Map<String, Object?>;
+        expect(data['appointment'], 'APPT-001');
+        expect(data['scheduled_time'], '2026-07-25 11:00:00');
+        expect(data['doctor'], 'DOC-001');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'appointment': {
+                'name': 'APPT-001',
+                'status': 'Open',
+                'scheduled_time': '2026-07-25 11:00:00',
+                'doctor': 'DOC-001',
+              },
+            },
+          },
+        });
+      }),
+    );
+
+    final appointment = await client.rescheduleAppointment(
+      'APPT-001',
+      scheduledTime: DateTime(2026, 7, 25, 11),
+      doctor: 'DOC-001',
+    );
+
+    expect(appointment.scheduledTime, '2026-07-25 11:00:00');
+    expect(appointment.doctor, 'DOC-001');
+  });
+
+  test(
+    'cancelAppointment posts reason and maps cancelled appointment',
+    () async {
+      final store = await _authedStore();
+      final client = AlkokhMobileClient(
+        tokenStore: store,
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.path,
+            '/api/method/pet_app.api.scheduling.cancel_appointment',
+          );
+          final body = jsonDecode(request.body) as Map<String, Object?>;
+          final data = body['data'] as Map<String, Object?>;
+          expect(data['appointment'], 'APPT-001');
+          expect(data['reason'], 'Cannot attend');
+          return _json({
+            'message': {
+              'ok': true,
+              'data': {
+                'appointment': {'name': 'APPT-001', 'status': 'Cancelled'},
+              },
+            },
+          });
+        }),
+      );
+
+      final appointment = await client.cancelAppointment(
+        'APPT-001',
+        reason: 'Cannot attend',
+      );
+
+      expect(appointment.status, 'Cancelled');
+    },
+  );
+
   test('error envelope throws typed SDK exception', () async {
     final client = AlkokhMobileClient(
       httpClient: MockClient((request) async {

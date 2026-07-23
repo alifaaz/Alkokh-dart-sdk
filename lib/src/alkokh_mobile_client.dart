@@ -969,6 +969,198 @@ class AlkokhMobileClient {
     });
   }
 
+  Future<List<AppointmentSlot>> getAvailableAppointmentSlots({
+    required DateTime date,
+    String? doctor,
+    String? practitioner,
+    String? room,
+    String serviceType = 'Visit',
+    int? durationMinutes,
+  }) async {
+    final data = await _getAuthed(
+      'pet_app.api.scheduling.get_available_slots',
+      {
+        'date': _formatDate(date),
+        if (doctor != null && doctor.trim().isNotEmpty) 'doctor': doctor.trim(),
+        if (practitioner != null && practitioner.trim().isNotEmpty)
+          'practitioner': practitioner.trim(),
+        if (room != null && room.trim().isNotEmpty) 'room': room.trim(),
+        'service_type': serviceType.trim().isEmpty
+            ? 'Visit'
+            : serviceType.trim(),
+        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      },
+    );
+    return _listOfMaps(data['slots']).map(AppointmentSlot.fromJson).toList();
+  }
+
+  Future<List<MobileAppointment>> listUpcomingAppointments({
+    int limit = 20,
+  }) async {
+    final data = await _getAuthed(
+      'pet_app.api.guardian_portal.get_upcoming_appointments',
+      {'limit': limit},
+    );
+    return _listOfMaps(
+      data['appointments'],
+    ).map(MobileAppointment.fromJson).toList();
+  }
+
+  Future<List<MobileAppointment>> listAppointments({
+    String? guardianId,
+    String? customerId,
+    String? petId,
+    String? status,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    bool futureOnly = false,
+    int limit = 50,
+    bool currentUserOnly = true,
+  }) async {
+    final query = <String, Object?>{
+      'limit': limit,
+      if (petId != null && petId.trim().isNotEmpty) 'pet': petId.trim(),
+      if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
+      if (dateFrom != null) 'date_from': _formatDate(dateFrom),
+      if (dateTo != null) 'date_to': _formatDate(dateTo),
+      if (futureOnly) 'future_only': 1,
+    };
+    if (!currentUserOnly) {
+      if (guardianId != null && guardianId.trim().isNotEmpty) {
+        query['guardian'] = guardianId.trim();
+      }
+      if (customerId != null && customerId.trim().isNotEmpty) {
+        query['customer'] = customerId.trim();
+      }
+    }
+
+    final data = await _getAuthed(
+      currentUserOnly
+          ? 'pet_app.api.guardian_portal.get_appointments'
+          : 'pet_app.api.scheduling.list_appointments',
+      query,
+    );
+    return _listOfMaps(
+      data['appointments'],
+    ).map(MobileAppointment.fromJson).toList();
+  }
+
+  Future<List<MobilePetCareService>> listPetCareServices({
+    String? petId,
+    String? status,
+    String? category,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    int limit = 50,
+  }) async {
+    final data = await _getAuthed(
+      'pet_app.api.guardian_portal.get_pet_care_services',
+      {
+        'limit': limit,
+        if (petId != null && petId.trim().isNotEmpty) 'pet': petId.trim(),
+        if (status != null && status.trim().isNotEmpty) 'status': status.trim(),
+        if (category != null && category.trim().isNotEmpty)
+          'category': category.trim(),
+        if (dateFrom != null) 'date_from': _formatDate(dateFrom),
+        if (dateTo != null) 'date_to': _formatDate(dateTo),
+      },
+    );
+    return _listOfMaps(
+      data['services'],
+    ).map(MobilePetCareService.fromJson).toList();
+  }
+
+  Future<MobilePetCareService> getPetCareService(String serviceId) async {
+    final serviceName = serviceId.trim();
+    if (serviceName.isEmpty) {
+      throw AlkokhValidationException('Service id is required.');
+    }
+    final data = await _getAuthed(
+      'pet_app.api.guardian_portal.get_pet_care_service',
+      {'service': serviceName},
+    );
+    return MobilePetCareService.fromJson(_stringMap(data['service']));
+  }
+
+  Future<MobileAppointment> bookAppointment({
+    required String petId,
+    String? guardianId,
+    required DateTime scheduledTime,
+    String appointmentType = 'visit',
+    String serviceType = 'Visit',
+    String? doctor,
+    String? practitioner,
+    String? room,
+    int? durationMinutes,
+    String? note,
+    String? clientRequestId,
+    String? idempotencyKey,
+  }) async {
+    final guardian = await _resolveGuardianId(guardianId);
+    final body = <String, Object?>{
+      'pet': _validateRequiredText(petId, 'Pet'),
+      'guardian': guardian,
+      'scheduled_time': _formatDateTime(scheduledTime),
+      'appointment_type': appointmentType.trim().isEmpty
+          ? 'visit'
+          : appointmentType.trim(),
+      'service_type': serviceType.trim().isEmpty ? 'Visit' : serviceType.trim(),
+      if (doctor != null && doctor.trim().isNotEmpty) 'doctor': doctor.trim(),
+      if (practitioner != null && practitioner.trim().isNotEmpty)
+        'practitioner': practitioner.trim(),
+      if (room != null && room.trim().isNotEmpty) 'room': room.trim(),
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
+        'client_request_id': clientRequestId.trim(),
+      if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty)
+        'idempotency_key': idempotencyKey.trim(),
+    };
+    final data = await _postAuthed('pet_app.api.scheduling.book_appointment', {
+      'data': body,
+    });
+    return MobileAppointment.fromJson(_stringMap(data['appointment']));
+  }
+
+  Future<MobileAppointment> rescheduleAppointment(
+    String appointmentId, {
+    required DateTime scheduledTime,
+    String? doctor,
+    String? practitioner,
+    String? room,
+    int? durationMinutes,
+  }) async {
+    final body = <String, Object?>{
+      'appointment': _validateRequiredText(appointmentId, 'Appointment'),
+      'scheduled_time': _formatDateTime(scheduledTime),
+      if (doctor != null && doctor.trim().isNotEmpty) 'doctor': doctor.trim(),
+      if (practitioner != null && practitioner.trim().isNotEmpty)
+        'practitioner': practitioner.trim(),
+      if (room != null && room.trim().isNotEmpty) 'room': room.trim(),
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+    };
+    final data = await _postAuthed(
+      'pet_app.api.scheduling.reschedule_appointment',
+      {'data': body},
+    );
+    return MobileAppointment.fromJson(_stringMap(data['appointment']));
+  }
+
+  Future<MobileAppointment> cancelAppointment(
+    String appointmentId, {
+    String? reason,
+  }) async {
+    final body = <String, Object?>{
+      'appointment': _validateRequiredText(appointmentId, 'Appointment'),
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    };
+    final data = await _postAuthed(
+      'pet_app.api.scheduling.cancel_appointment',
+      {'data': body},
+    );
+    return MobileAppointment.fromJson(_stringMap(data['appointment']));
+  }
+
   Future<PagedResult<MobileOrder>> listOrders({
     int limit = 20,
     String? cursor,
@@ -1425,6 +1617,38 @@ class AlkokhMobileClient {
       throw AlkokhValidationException('$label is required.');
     }
     return trimmed;
+  }
+
+  Future<String> _resolveGuardianId(String? guardianId) async {
+    if (guardianId != null && guardianId.trim().isNotEmpty) {
+      return guardianId.trim();
+    }
+    final profile = await getMe();
+    final guardian = profile.guardianId;
+    if (guardian == null || guardian.trim().isEmpty) {
+      throw AlkokhValidationException(
+        'Guardian is required to book an appointment.',
+      );
+    }
+    return guardian.trim();
+  }
+
+  String _formatDate(DateTime value) {
+    return [
+      value.year.toString().padLeft(4, '0'),
+      value.month.toString().padLeft(2, '0'),
+      value.day.toString().padLeft(2, '0'),
+    ].join('-');
+  }
+
+  String _formatDateTime(DateTime value) {
+    final date = _formatDate(value);
+    final time = [
+      value.hour.toString().padLeft(2, '0'),
+      value.minute.toString().padLeft(2, '0'),
+      value.second.toString().padLeft(2, '0'),
+    ].join(':');
+    return '$date $time';
   }
 
   String _normalizePaymentMethod(String paymentMethod) {

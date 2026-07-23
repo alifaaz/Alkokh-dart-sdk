@@ -53,6 +53,24 @@ final addresses = await client.listAddresses();
 final quote = await client.quoteOrder(
   items: const [MobileOrderItem(itemCode: 'ITEM-001', qty: 2)],
 );
+final slots = await client.getAvailableAppointmentSlots(
+  date: DateTime.now().add(const Duration(days: 1)),
+);
+final appointment = slots.isEmpty
+    ? null
+    : await client.bookAppointment(
+        petId: pets.items.first.id,
+        scheduledTime: DateTime.parse(slots.first.start),
+      );
+final myAppointments = await client.listAppointments(futureOnly: true);
+final guardianAppointments = await client.listAppointments(
+  guardianId: 'GUARDIAN-001',
+  currentUserOnly: false,
+);
+final myServices = await client.listPetCareServices(petId: pets.items.first.id);
+final serviceDetails = myServices.isEmpty
+    ? null
+    : await client.getPetCareService(myServices.first.id);
 ```
 
 For Flutter, use `KeyValueTokenStore` with `flutter_secure_storage` and pass it to `AlkokhMobileClient`. See [docs/mobile_team_usage.md](docs/mobile_team_usage.md).
@@ -67,6 +85,8 @@ For Flutter, use `KeyValueTokenStore` with `flutter_secure_storage` and pass it 
 - Favorites/reviews/recent search: favorite toggle/list/remove, product review list/upsert, recent search list/save/clear.
 - Devices: register/delete FCM device tokens; no push sending yet.
 - Pets: list, detail, create, update, disable/archive, photo upload, medical timeline, documents, vaccination/deworming CRUD.
+- Appointments: available slots, upcoming appointments, book, reschedule, cancel.
+- Pet care services: guardian service list/detail with pet, category, template, option, pricing, dates, doctor/provider aliases.
 - Orders: quote frontend cart, place cash-only Sales Order, list, detail, cancel, reorder draft.
 - Debugging: optional `X-Request-Id` provider.
 - Upload UX: avatar and pet photo upload progress callbacks.

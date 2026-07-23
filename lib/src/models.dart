@@ -116,6 +116,363 @@ class MobileMessage {
   }
 }
 
+class AppointmentSlot {
+  const AppointmentSlot({
+    required this.start,
+    required this.end,
+    required this.raw,
+    this.doctor,
+    this.practitioner,
+    this.room,
+    this.doctorName,
+  });
+
+  final String start;
+  final String end;
+  final String? doctor;
+  final String? practitioner;
+  final String? room;
+  final String? doctorName;
+  final Map<String, Object?> raw;
+
+  static AppointmentSlot fromJson(Map<String, Object?> json) {
+    return AppointmentSlot(
+      start: json['start']?.toString() ?? '',
+      end: json['end']?.toString() ?? '',
+      doctor: json['doctor'] as String?,
+      practitioner: json['practitioner'] as String?,
+      room: json['room'] as String?,
+      doctorName: json['doctor_name'] as String?,
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class MobileAppointment {
+  const MobileAppointment({
+    required this.id,
+    required this.status,
+    required this.raw,
+    this.scheduledTime,
+    this.pet,
+    this.petName,
+    this.guardian,
+    this.guardianName,
+    this.customer,
+    this.doctor,
+    this.doctorName,
+    this.practitioner,
+    this.room,
+    this.durationMinutes,
+    this.appointmentType,
+    this.customerDetails,
+  });
+
+  final String id;
+  final String status;
+  final String? scheduledTime;
+  final String? pet;
+  final String? petName;
+  final String? guardian;
+  final String? guardianName;
+  final String? customer;
+  final String? doctor;
+  final String? doctorName;
+  final String? practitioner;
+  final String? room;
+  final int? durationMinutes;
+  final String? appointmentType;
+  final String? customerDetails;
+  final Map<String, Object?> raw;
+
+  static MobileAppointment fromJson(Map<String, Object?> json) {
+    final doctor =
+        json['doctor'] as String? ?? json['custom_doctor'] as String?;
+    return MobileAppointment(
+      id: (json['id'] ?? json['name'] ?? '') as String,
+      status: json['status'] as String? ?? '',
+      scheduledTime:
+          (json['scheduled_time'] ?? json['start'] ?? json['appointment_time'])
+              ?.toString(),
+      pet: json['pet'] as String? ?? json['custom_pet'] as String?,
+      petName: json['pet_name'] as String?,
+      guardian:
+          json['guardian'] as String? ?? json['custom_guardian'] as String?,
+      guardianName: json['guardian_name'] as String?,
+      customer:
+          json['customer'] as String? ?? json['custom_customer'] as String?,
+      doctor: doctor,
+      doctorName: json['doctor_name'] as String?,
+      practitioner: json['practitioner'] as String? ?? doctor,
+      room: json['room'] as String? ?? json['custom_room'] as String?,
+      durationMinutes:
+          _readInt(json['duration_minutes']) ??
+          _readInt(json['custom_duration_minutes']),
+      appointmentType:
+          json['appointment_type'] as String? ??
+          json['custom_appointment_type'] as String?,
+      customerDetails: json['customer_details'] as String?,
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class CareServiceTemplateSummary {
+  const CareServiceTemplateSummary({
+    required this.id,
+    required this.raw,
+    this.serviceName,
+    this.arabicName,
+    this.frequency,
+    this.itemCode,
+    this.priceList,
+    this.specimen,
+    this.estimatedTurnaround,
+    this.modality,
+    this.bodyPart,
+    this.serviceArea,
+    this.animalSpecies,
+    this.categoryId,
+    this.defaultPrice,
+    this.description,
+    this.disabled,
+  });
+
+  final String id;
+  final String? serviceName;
+  final String? arabicName;
+  final String? frequency;
+  final String? itemCode;
+  final String? priceList;
+  final String? specimen;
+  final String? estimatedTurnaround;
+  final String? modality;
+  final String? bodyPart;
+  final String? serviceArea;
+  final String? animalSpecies;
+  final String? categoryId;
+  final num? defaultPrice;
+  final String? description;
+  final bool? disabled;
+  final Map<String, Object?> raw;
+
+  static CareServiceTemplateSummary fromJson(Map<String, Object?> json) {
+    return CareServiceTemplateSummary(
+      id: json['name'] as String? ?? '',
+      serviceName: json['service_name'] as String?,
+      arabicName: json['arabic_name'] as String?,
+      frequency: json['frequency'] as String?,
+      itemCode: json['item_code'] as String?,
+      priceList: json['price_list'] as String?,
+      specimen: json['specimen'] as String?,
+      estimatedTurnaround: json['estimated_turnaround'] as String?,
+      modality: json['modality'] as String?,
+      bodyPart: json['body_part'] as String?,
+      serviceArea: json['service_area'] as String?,
+      animalSpecies: json['animal_species'] as String?,
+      categoryId: json['category_id'] as String?,
+      defaultPrice: _readNum(json['default_price']),
+      description: json['description'] as String?,
+      disabled: _readBool(json['disabled']),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class CareServiceCategorySummary {
+  const CareServiceCategorySummary({
+    required this.id,
+    required this.raw,
+    this.categoryName,
+    this.arabicName,
+    this.description,
+    this.active,
+  });
+
+  final String id;
+  final String? categoryName;
+  final String? arabicName;
+  final String? description;
+  final bool? active;
+  final Map<String, Object?> raw;
+
+  static CareServiceCategorySummary fromJson(Map<String, Object?> json) {
+    return CareServiceCategorySummary(
+      id: json['name'] as String? ?? '',
+      categoryName: json['category_name'] as String?,
+      arabicName: json['arabic_name'] as String?,
+      description: json['description'] as String?,
+      active: _readBool(json['active']),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class CareServiceOptionSummary {
+  const CareServiceOptionSummary({
+    required this.id,
+    required this.raw,
+    this.optionLabel,
+    this.arOptionLabel,
+    this.animalSpecies,
+    this.animalType,
+    this.sizeWeightLabel,
+    this.minWeight,
+    this.maxWeight,
+    this.itemCode,
+    this.defaultRate,
+    this.serviceTitle,
+  });
+
+  final String id;
+  final String? optionLabel;
+  final String? arOptionLabel;
+  final String? animalSpecies;
+  final String? animalType;
+  final String? sizeWeightLabel;
+  final num? minWeight;
+  final num? maxWeight;
+  final String? itemCode;
+  final num? defaultRate;
+  final String? serviceTitle;
+  final Map<String, Object?> raw;
+
+  static CareServiceOptionSummary fromJson(Map<String, Object?> json) {
+    return CareServiceOptionSummary(
+      id: json['name'] as String? ?? '',
+      optionLabel: json['option_label'] as String?,
+      arOptionLabel: json['ar_option_label'] as String?,
+      animalSpecies: json['animal_species'] as String?,
+      animalType: json['animal_type'] as String?,
+      sizeWeightLabel: json['size_weight_label'] as String?,
+      minWeight: _readNum(json['min_weight']),
+      maxWeight: _readNum(json['max_weight']),
+      itemCode: json['item_code'] as String?,
+      defaultRate: _readNum(json['default_rate']),
+      serviceTitle: json['service_title'] as String?,
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
+class MobilePetCareService {
+  const MobilePetCareService({
+    required this.id,
+    required this.status,
+    required this.raw,
+    this.serviceName,
+    this.petId,
+    this.petName,
+    this.guardianId,
+    this.guardianName,
+    this.category,
+    this.categoryName,
+    this.categoryArabicName,
+    this.careServiceId,
+    this.serviceOption,
+    this.itemCode,
+    this.price,
+    this.doctor,
+    this.doctorName,
+    this.provider,
+    this.providerName,
+    this.visit,
+    this.sourceDoctype,
+    this.sourceName,
+    this.orderId,
+    this.startDate,
+    this.endDate,
+    this.dueDate,
+    this.weight,
+    this.size,
+    this.description,
+    this.template,
+    this.categoryDetails,
+    this.optionDetails,
+  });
+
+  final String id;
+  final String status;
+  final String? serviceName;
+  final String? petId;
+  final String? petName;
+  final String? guardianId;
+  final String? guardianName;
+  final String? category;
+  final String? categoryName;
+  final String? categoryArabicName;
+  final String? careServiceId;
+  final String? serviceOption;
+  final String? itemCode;
+  final num? price;
+  final String? doctor;
+  final String? doctorName;
+  final String? provider;
+  final String? providerName;
+  final String? visit;
+  final String? sourceDoctype;
+  final String? sourceName;
+  final String? orderId;
+  final String? startDate;
+  final String? endDate;
+  final String? dueDate;
+  final num? weight;
+  final String? size;
+  final String? description;
+  final CareServiceTemplateSummary? template;
+  final CareServiceCategorySummary? categoryDetails;
+  final CareServiceOptionSummary? optionDetails;
+  final Map<String, Object?> raw;
+
+  static MobilePetCareService fromJson(Map<String, Object?> json) {
+    final template = _stringMap(json['care_service']);
+    final categoryDetails = _stringMap(json['category_details']);
+    final optionDetails = _stringMap(json['service_option_details']);
+    return MobilePetCareService(
+      id: (json['service_id'] ?? json['name'] ?? '') as String,
+      status: json['status'] as String? ?? '',
+      serviceName:
+          json['service_name'] as String? ??
+          json['pet_service_name'] as String?,
+      petId: json['pet_id'] as String?,
+      petName: json['pet_name'] as String?,
+      guardianId: json['guardian_id'] as String?,
+      guardianName: json['guardian_name'] as String?,
+      category: json['category'] as String?,
+      categoryName: json['category_name'] as String?,
+      categoryArabicName: json['category_arabic_name'] as String?,
+      careServiceId: json['care_service_id'] as String?,
+      serviceOption: json['service_option'] as String?,
+      itemCode: json['item_code'] as String?,
+      price: _readNum(json['price']),
+      doctor: json['doctor'] as String?,
+      doctorName: json['doctor_name'] as String?,
+      provider: json['provider'] as String?,
+      providerName: json['provider_name'] as String?,
+      visit: json['visit'] as String?,
+      sourceDoctype: json['source_doctype'] as String?,
+      sourceName: json['source_name'] as String?,
+      orderId: json['order_id'] as String?,
+      startDate: json['start_date']?.toString(),
+      endDate: json['end_date']?.toString(),
+      dueDate: json['due_date']?.toString(),
+      weight: _readNum(json['weight']),
+      size: json['size'] as String?,
+      description: json['description'] as String?,
+      template: template.isEmpty
+          ? null
+          : CareServiceTemplateSummary.fromJson(template),
+      categoryDetails: categoryDetails.isEmpty
+          ? null
+          : CareServiceCategorySummary.fromJson(categoryDetails),
+      optionDetails: optionDetails.isEmpty
+          ? null
+          : CareServiceOptionSummary.fromJson(optionDetails),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
 class ResetToken {
   const ResetToken(this.value);
 
@@ -1558,6 +1915,17 @@ int? _readInt(Object? value) {
 num? _readNum(Object? value) {
   if (value is num) return value;
   if (value is String) return num.tryParse(value);
+  return null;
+}
+
+bool? _readBool(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == '1' || normalized == 'true') return true;
+    if (normalized == '0' || normalized == 'false') return false;
+  }
   return null;
 }
 
