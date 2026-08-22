@@ -986,6 +986,9 @@ class MobileAddress {
     this.pincode,
     this.phone,
     this.emailId,
+    this.notes,
+    this.latitude,
+    this.longitude,
     this.isDefault = false,
     this.isShippingAddress = false,
     this.isPrimaryAddress = false,
@@ -1005,6 +1008,17 @@ class MobileAddress {
   final String? pincode;
   final String? phone;
   final String? emailId;
+
+  /// Delivery instruction for whoever makes the drop. `Address.custom_notes` on the
+  /// backend, which is print_hide - it is deliberately not part of the printed address.
+  final String? notes;
+
+  /// Delivery map pin, decimal degrees. Null when the address has never been pinned -
+  /// the backend reports the unset pair as null rather than the 0.0 its Float column
+  /// actually holds, so this is never a spurious marker at (0, 0). Always null together
+  /// with [longitude], never one alone.
+  final double? latitude;
+  final double? longitude;
   final bool isDefault;
   final bool isShippingAddress;
   final bool isPrimaryAddress;
@@ -1026,6 +1040,9 @@ class MobileAddress {
       pincode: json['pincode'] as String?,
       phone: json['phone'] as String?,
       emailId: json['email_id'] as String?,
+      notes: json['notes'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       isDefault: json['is_default'] == true,
       isShippingAddress: json['is_shipping_address'] == true,
       isPrimaryAddress: json['is_primary_address'] == true,

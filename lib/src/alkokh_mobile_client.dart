@@ -377,6 +377,9 @@ class AlkokhMobileClient {
     String? pincode,
     String? phone,
     String? emailId,
+    String? notes,
+    double? latitude,
+    double? longitude,
     bool isDefault = false,
   }) async {
     final body = _addressBody(
@@ -390,6 +393,9 @@ class AlkokhMobileClient {
       pincode: pincode,
       phone: phone,
       emailId: emailId,
+      notes: notes,
+      latitude: latitude,
+      longitude: longitude,
     );
     if (isDefault) body['is_default'] = 1;
     final data = await _postAuthed(
@@ -411,6 +417,10 @@ class AlkokhMobileClient {
     String? pincode,
     String? phone,
     String? emailId,
+    String? notes,
+    double? latitude,
+    double? longitude,
+    bool clearCoordinates = false,
     bool? isDefault,
   }) async {
     final body = _addressBody(
@@ -424,6 +434,10 @@ class AlkokhMobileClient {
       pincode: pincode,
       phone: phone,
       emailId: emailId,
+      notes: notes,
+      latitude: latitude,
+      longitude: longitude,
+      clearCoordinates: clearCoordinates,
     );
     if (isDefault != null) body['is_default'] = isDefault ? 1 : 0;
     if (body.isEmpty) {
@@ -513,14 +527,61 @@ class AlkokhMobileClient {
     );
   }
 
+  /// The "Show All" page behind a home product-list block.
+  ///
+  /// Goes to `catalog.home_block_v2`, which resolves any block id in the published home
+  /// snapshot. The previous route, `catalog.list_products?list=`, resolves only three
+  /// hardcoded ids (`best-sellers`, `recently-added`, `back-in-stock`) via
+  /// `_home_product_list_config`, so every product list an admin created rendered in
+  /// `home_v2` and then 400'd with "Unknown product list" on Show All.
+  ///
+  /// The fallback is not belt-and-braces. Neither endpoint covers every case: on a site
+  /// with no active publication `home_block_v2` 404s for all ids, while `list_products`
+  /// still serves the three system lists. Trying the block first and falling back on
+  /// `catalog.not_found` fixes custom blocks without regressing system lists on an
+  /// unpublished site. A custom block on an unpublished site has genuinely nothing to
+  /// show, and surfaces the backend's own error.
+  ///
+  /// [tag] has no equivalent on `home_block_v2` and routes straight to the old endpoint.
   Future<PagedResult<HomeProductCard>> listHomeProducts({
     required String listId,
     String? filter,
     String? tag,
+    String? locale,
     int limit = 20,
     String? cursor,
     bool forceRefresh = false,
   }) async {
+    if (tag == null || tag.isEmpty) {
+      try {
+        final offset = int.tryParse(cursor ?? '') ?? 0;
+        final data = await _getPublicCached(
+          'pet_app.api.mobile.catalog.home_block_v2',
+          query: {
+            'block_id': listId,
+            'limit_start': offset,
+            'limit_page_length': limit,
+            if (filter != null && filter.isNotEmpty) 'filter_key': filter,
+            if (locale != null && locale.isNotEmpty) 'locale': locale,
+          },
+          forceRefresh: forceRefresh,
+        );
+        final hasMore = data['has_more'] == true;
+        final pageLength =
+            (data['limit_page_length'] as num?)?.toInt() ?? limit;
+        final start = (data['limit_start'] as num?)?.toInt() ?? offset;
+        return PagedResult(
+          items: _listOfMaps(_stringMap(data['data'])['products'])
+              .map(HomeProductCard.fromJson)
+              .toList(),
+          hasMore: hasMore,
+          nextCursor: hasMore ? '${start + pageLength}' : null,
+        );
+      } on AlkokhMobileException catch (error) {
+        if (error.code != 'catalog.not_found') rethrow;
+      }
+    }
+
     final data = await _getPublicCached(
       'pet_app.api.mobile.catalog.list_products',
       query: {
@@ -1439,6 +1500,9 @@ class AlkokhMobileClient {
     return _cacheStore.deleteWhere((key) {
       if (key == productDetailKey) return true;
       if (key.startsWith('pet_app.api.mobile.catalog.home_v2')) return true;
+      if (key.startsWith('pet_app.api.mobile.catalog.home_block_v2')) {
+        return true;
+      }
       if (key.startsWith('pet_app.api.mobile.catalog.list_products')) {
         return true;
       }
@@ -1540,6 +1604,26 @@ class AlkokhMobileClient {
         message: error['message'] as String? ?? 'Request failed.',
         statusCode: response.statusCode,
         details: error['details'],
+      );
+    }
+
+    // The four-key envelope reports failure as `ok: false` with the reason in `errors[]`
+    // and no `error` key at all, at HTTP 200. Endpoints wrapping `@standardize_response`
+    // return it - `pet_app.api.scheduling.book_appointment` is the one on this surface.
+    // Without this branch such a refusal fell past the `error` check, past the status
+    // check, and into the `data` branch, which returned `{}`: a rejected booking parsed
+    // as an empty MobileAppointment instead of throwing.
+    //
+    // `errors[0].details` is deliberately never read. It carries a server traceback.
+    final errors = _listOfMaps(envelope['errors']);
+    if (envelope['ok'] == false || errors.isNotEmpty) {
+      final first = errors.isEmpty ? const <String, Object?>{} : errors.first;
+      final meta = _stringMap(envelope['meta']);
+      throw AlkokhMobileException(
+        code:
+            first['code'] as String? ?? meta['code'] as String? ?? 'Error',
+        message: first['message'] as String? ?? 'Request failed.',
+        statusCode: response.statusCode,
       );
     }
 
@@ -1752,7 +1836,31 @@ class AlkokhMobileClient {
     String? pincode,
     String? phone,
     String? emailId,
+    String? notes,
+    double? latitude,
+    double? longitude,
+    bool clearCoordinates = false,
   }) {
+    if (clearCoordinates && (latitude != null || longitude != null)) {
+      throw AlkokhValidationException(
+        'Pass either a coordinate pair or clearCoordinates, not both.',
+      );
+    }
+    if ((latitude == null) != (longitude == null)) {
+      throw AlkokhValidationException(
+        'Latitude and longitude must be sent together.',
+      );
+    }
+    if (latitude != null && (latitude < -90 || latitude > 90)) {
+      throw AlkokhValidationException(
+        'Latitude must be a number between -90 and 90.',
+      );
+    }
+    if (longitude != null && (longitude < -180 || longitude > 180)) {
+      throw AlkokhValidationException(
+        'Longitude must be a number between -180 and 180.',
+      );
+    }
     return <String, Object?>{
       if (title != null) 'title': title,
       if (addressLine1 != null) 'address_line1': addressLine1,
@@ -1764,6 +1872,16 @@ class AlkokhMobileClient {
       if (pincode != null) 'pincode': pincode,
       if (phone != null) 'phone': phone,
       if (emailId != null) 'email_id': emailId,
+      // Maps to Address.custom_notes on the backend. A delivery instruction for whoever
+      // makes the drop - not part of the printed address, which is what address_line2 is.
+      if (notes != null) 'notes': notes,
+      // The delivery map pin, Address.custom_latitude / custom_longitude. The backend
+      // validates the pair the same way this does and refuses a lone coordinate; two
+      // empty strings clear it, which is what clearCoordinates sends.
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (clearCoordinates) 'latitude': '',
+      if (clearCoordinates) 'longitude': '',
     };
   }
 }

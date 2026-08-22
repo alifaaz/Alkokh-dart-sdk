@@ -1819,6 +1819,301 @@ void main() {
       ),
     );
   });
+
+  test('four-key ok:false envelope at HTTP 200 throws instead of parsing empty', () async {
+    final client = AlkokhMobileClient(
+      tokenStore: await _authedStore(),
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.book_appointment',
+        );
+        // What @standardize_response emits on failure: no `error` key, HTTP 200.
+        return _json({
+          'message': {
+            'ok': false,
+            'data': <String, Object?>{},
+            'meta': {'code': 'ValidationError'},
+            'errors': [
+              {
+                'message': 'That slot is already taken.',
+                'details': 'Traceback (most recent call last): ...',
+              },
+            ],
+          },
+        });
+      }),
+    );
+
+    await expectLater(
+      () => client.bookAppointment(
+        petId: 'PET-0001',
+        guardianId: 'GUARDIAN-0001',
+        scheduledTime: DateTime(2026, 9, 1, 10),
+      ),
+      throwsA(
+        isA<AlkokhMobileException>()
+            .having((e) => e.code, 'code', 'ValidationError')
+            .having((e) => e.message, 'message', 'That slot is already taken.')
+            // errors[0].details is a server traceback and must never be surfaced.
+            .having((e) => e.details, 'details', isNull),
+      ),
+    );
+  });
+
+  test('listHomeProducts resolves a custom block through home_block_v2', () async {
+    final client = AlkokhMobileClient(
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.mobile.catalog.home_block_v2',
+        );
+        expect(request.url.queryParameters['block_id'], 'featured-products');
+        expect(request.url.queryParameters['filter_key'], 'dog');
+        expect(request.url.queryParameters['limit_start'], '20');
+        expect(request.url.queryParameters['limit_page_length'], '20');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'block_id': 'featured-products',
+              'title': 'Featured',
+              'data': {
+                'products': [
+                  {
+                    'id': 'PROD-9',
+                    'name': 'Featured Chew',
+                    'price': 12000,
+                    'effective_price': 12000,
+                    'currency': 'IQD',
+                    'in_stock': true,
+                  },
+                ],
+              },
+              'total': 60,
+              'limit_start': 20,
+              'limit_page_length': 20,
+              'has_more': true,
+            },
+          },
+        });
+      }),
+    );
+
+    final page = await client.listHomeProducts(
+      listId: 'featured-products',
+      filter: 'dog',
+      cursor: '20',
+    );
+    expect(page.items.single.id, 'PROD-9');
+    expect(page.hasMore, isTrue);
+    // Offset pagination is mapped onto the SDK's cursor contract.
+    expect(page.nextCursor, '40');
+  });
+
+  test('listHomeProducts falls back to list_products when no home block exists', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      httpClient: MockClient((request) async {
+        switch (call++) {
+          case 0:
+            expect(
+              request.url.path,
+              '/api/method/pet_app.api.mobile.catalog.home_block_v2',
+            );
+            // An unpublished site 404s for every block id, system lists included.
+            return _json({
+              'message': {
+                'error': {
+                  'code': 'catalog.not_found',
+                  'message': 'Home block was not found.',
+                },
+              },
+            }, statusCode: 404);
+          case 1:
+            expect(
+              request.url.path,
+              '/api/method/pet_app.api.mobile.catalog.list_products',
+            );
+            expect(request.url.queryParameters['list'], 'best-sellers');
+            return _json({
+              'message': {
+                'ok': true,
+                'data': {
+                  'items': [
+                    {
+                      'id': 'PROD-1',
+                      'name': 'Dog Food',
+                      'price': 20000,
+                      'effective_price': 20000,
+                      'currency': 'IQD',
+                      'in_stock': true,
+                    },
+                  ],
+                  'hasMore': false,
+                  'nextCursor': null,
+                },
+              },
+            });
+        }
+        fail('Unexpected request ${request.url.path}');
+      }),
+    );
+
+    final page = await client.listHomeProducts(listId: 'best-sellers');
+    expect(call, 2);
+    expect(page.items.single.id, 'PROD-1');
+    expect(page.hasMore, isFalse);
+  });
+
+  test('address notes round-trip through create and update', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      tokenStore: await _authedStore(),
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        if (call++ == 0) {
+          expect(
+            request.url.path,
+            '/api/method/pet_app.api.mobile.addresses.create_address',
+          );
+          expect(body['notes'], 'gate code 4471');
+          expect(body['county'], 'Karrada');
+        } else {
+          expect(
+            request.url.path,
+            '/api/method/pet_app.api.mobile.addresses.update_address',
+          );
+          expect(body['notes'], 'call on arrival');
+        }
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'id': 'ADDRESS-0001',
+              'address_line1': 'House 12, Street 4',
+              'city': 'Baghdad',
+              'county': 'Karrada',
+              'notes': call == 1 ? 'gate code 4471' : 'call on arrival',
+            },
+          },
+        });
+      }),
+    );
+
+    final created = await client.createAddress(
+      addressLine1: 'House 12, Street 4',
+      city: 'Baghdad',
+      county: 'Karrada',
+      notes: 'gate code 4471',
+    );
+    expect(created.notes, 'gate code 4471');
+    expect(created.county, 'Karrada');
+
+    final updated = await client.updateAddress(
+      'ADDRESS-0001',
+      notes: 'call on arrival',
+    );
+    expect(updated.notes, 'call on arrival');
+  });
+
+  test('address coordinates round-trip, clear, and refuse a lone value', () async {
+    var call = 0;
+    final client = AlkokhMobileClient(
+      tokenStore: await _authedStore(),
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        if (call++ == 0) {
+          expect(body['latitude'], 33.315241);
+          expect(body['longitude'], 44.3661);
+          return _json({
+            'message': {
+              'ok': true,
+              'data': {
+                'id': 'ADDRESS-0001',
+                'city': 'Baghdad',
+                'latitude': 33.315241,
+                'longitude': 44.3661,
+              },
+            },
+          });
+        }
+        // clearCoordinates sends two empty strings, which is how the backend clears.
+        expect(body['latitude'], '');
+        expect(body['longitude'], '');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'id': 'ADDRESS-0001',
+              'city': 'Baghdad',
+              'latitude': null,
+              'longitude': null,
+            },
+          },
+        });
+      }),
+    );
+
+    final pinned = await client.createAddress(
+      addressLine1: 'House 12, Street 4',
+      city: 'Baghdad',
+      latitude: 33.315241,
+      longitude: 44.3661,
+    );
+    expect(pinned.latitude, 33.315241);
+    expect(pinned.longitude, 44.3661);
+
+    final cleared = await client.updateAddress(
+      'ADDRESS-0001',
+      clearCoordinates: true,
+    );
+    expect(cleared.latitude, isNull);
+    expect(cleared.longitude, isNull);
+
+    // Caught client-side, before a request is made - call stays at 2.
+    expect(
+      () => client.createAddress(
+        addressLine1: 'House 12, Street 4',
+        city: 'Baghdad',
+        latitude: 33.315241,
+      ),
+      throwsA(isA<AlkokhValidationException>()),
+    );
+    expect(
+      () => client.createAddress(
+        addressLine1: 'House 12, Street 4',
+        city: 'Baghdad',
+        latitude: 91,
+        longitude: 44.3661,
+      ),
+      throwsA(isA<AlkokhValidationException>()),
+    );
+    expect(call, 2);
+  });
+
+  test('an unpinned address parses as null, never as (0, 0)', () async {
+    final client = AlkokhMobileClient(
+      tokenStore: await _authedStore(),
+      httpClient: MockClient((request) async {
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'items': [
+                {'id': 'ADDRESS-0002', 'city': 'Baghdad'},
+              ],
+              'hasMore': false,
+            },
+          },
+        });
+      }),
+    );
+
+    final addresses = await client.listAddresses();
+    expect(addresses.items.single.latitude, isNull);
+    expect(addresses.items.single.longitude, isNull);
+  });
 }
 
 Future<MemoryTokenStore> _authedStore() async {
