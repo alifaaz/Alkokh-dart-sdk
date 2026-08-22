@@ -1978,7 +1978,7 @@ void main() {
             '/api/method/pet_app.api.mobile.addresses.create_address',
           );
           expect(body['notes'], 'gate code 4471');
-          expect(body['county'], 'Karrada');
+          expect(body['area'], 'Karrada');
         } else {
           expect(
             request.url.path,
@@ -1993,7 +1993,7 @@ void main() {
               'id': 'ADDRESS-0001',
               'address_line1': 'House 12, Street 4',
               'city': 'Baghdad',
-              'county': 'Karrada',
+              'area': 'Karrada',
               'notes': call == 1 ? 'gate code 4471' : 'call on arrival',
             },
           },
@@ -2004,11 +2004,11 @@ void main() {
     final created = await client.createAddress(
       addressLine1: 'House 12, Street 4',
       city: 'Baghdad',
-      county: 'Karrada',
+      area: 'Karrada',
       notes: 'gate code 4471',
     );
     expect(created.notes, 'gate code 4471');
-    expect(created.county, 'Karrada');
+    expect(created.area, 'Karrada');
 
     final updated = await client.updateAddress(
       'ADDRESS-0001',

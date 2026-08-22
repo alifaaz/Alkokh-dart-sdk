@@ -980,7 +980,7 @@ class MobileAddress {
     this.addressLine1,
     this.addressLine2,
     this.city,
-    this.county,
+    this.area,
     this.state,
     this.country,
     this.pincode,
@@ -1002,7 +1002,9 @@ class MobileAddress {
   final String? addressLine1;
   final String? addressLine2;
   final String? city;
-  final String? county;
+  /// The neighbourhood - Karrada, Mansour. Sent and returned as `area`; the backend
+  /// stores it in ERPNext's `county` column, which is why the admin UI calls it Area.
+  final String? area;
   final String? state;
   final String? country;
   final String? pincode;
@@ -1034,7 +1036,7 @@ class MobileAddress {
       addressLine1: json['address_line1'] as String?,
       addressLine2: json['address_line2'] as String?,
       city: json['city'] as String?,
-      county: json['county'] as String?,
+      area: json['area'] as String?,
       state: json['state'] as String?,
       country: json['country'] as String?,
       pincode: json['pincode'] as String?,
