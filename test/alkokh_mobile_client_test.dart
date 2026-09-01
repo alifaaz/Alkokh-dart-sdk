@@ -1383,6 +1383,38 @@ void main() {
     );
   });
 
+  test('listAppointmentTypes maps booking type options', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(baseUrl: 'https://api.example.test'),
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.scheduling.list_appointment_types',
+        );
+        expect(request.headers['Authorization'], 'Bearer access');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'appointment_types': [
+                {'value': 'visit', 'label': 'Visit'},
+                {'value': 'follow_up', 'label': 'Follow Up'},
+              ],
+              'types': ['visit', 'follow_up'],
+            },
+          },
+        });
+      }),
+    );
+
+    final types = await client.listAppointmentTypes();
+
+    expect(types.map((type) => type.value), ['visit', 'follow_up']);
+    expect(types.last.label, 'Follow Up');
+  });
+
   test('getAvailableAppointmentSlots maps backend slots', () async {
     final store = await _authedStore();
     final client = AlkokhMobileClient(

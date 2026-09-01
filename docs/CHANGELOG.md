@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Appointments
+
+Added `listAppointmentTypes()`, backed by `pet_app.api.scheduling.list_appointment_types`, so Flutter can render booking-type choices from the backend `Appointment.custom_appointment_type` Select options instead of hardcoding them.
+
 **Breaking — `area` replaces `county` as the address API key (SDK 0.2.0).** Send `area`, read `area`. Sending `county` is now refused with `HTTP 400 address.request_invalid`, message `'county' is no longer accepted. Send 'area' instead.` — on create and update, whether or not other fields are present. It fails rather than losing the value, so an app on the old build errors on save until it updates. The stored column is unchanged; existing data is intact.
 
 ### Your four questions
@@ -53,4 +57,4 @@ Custom blocks need a published home layout, and nothing is published on the back
 
 `setDefault` returns the full address payload, so you can drop it straight into your list state. It clears the flag on every sibling, so refresh the rest. A soft-deleted address returns **404**, not 400.
 
-No breaking changes. 44 tests passing, `dart analyze` clean.
+No breaking changes. 45 tests passing, `dart analyze` clean.

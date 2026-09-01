@@ -116,6 +116,27 @@ class MobileMessage {
   }
 }
 
+class AppointmentType {
+  const AppointmentType({
+    required this.value,
+    required this.label,
+    required this.raw,
+  });
+
+  final String value;
+  final String label;
+  final Map<String, Object?> raw;
+
+  static AppointmentType fromJson(Map<String, Object?> json) {
+    final value = json['value']?.toString() ?? '';
+    return AppointmentType(
+      value: value,
+      label: json['label']?.toString() ?? _labelFromKey(value),
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
 class AppointmentSlot {
   const AppointmentSlot({
     required this.start,
@@ -1959,4 +1980,12 @@ Map<String, Object?> _stringMap(Object? value) {
 List<Map<String, Object?>> _listOfMaps(Object? value) {
   if (value is! List) return const [];
   return value.map(_stringMap).toList();
+}
+
+String _labelFromKey(String value) {
+  return value
+      .split('_')
+      .where((part) => part.isNotEmpty)
+      .map((part) => part[0].toUpperCase() + part.substring(1))
+      .join(' ');
 }

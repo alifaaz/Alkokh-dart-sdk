@@ -1030,6 +1030,28 @@ class AlkokhMobileClient {
     });
   }
 
+  Future<List<AppointmentType>> listAppointmentTypes() async {
+    final data = await _getAuthed(
+      'pet_app.api.scheduling.list_appointment_types',
+    );
+    final rows = _listOfMaps(data['appointment_types']);
+    if (rows.isNotEmpty) {
+      return rows
+          .map(AppointmentType.fromJson)
+          .where((type) => type.value.isNotEmpty)
+          .toList();
+    }
+
+    final values = data['types'];
+    if (values is List) {
+      return values
+          .map((value) => AppointmentType.fromJson({'value': value}))
+          .where((type) => type.value.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
   Future<List<AppointmentSlot>> getAvailableAppointmentSlots({
     required DateTime date,
     String? doctor,

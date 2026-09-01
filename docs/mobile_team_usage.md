@@ -144,6 +144,25 @@ final me = await client.getMe();
 
 The SDK stores sessions through the provided `TokenStore`, refreshes access tokens when needed, and clears stored sessions after password change, phone verification, sign-out, or account delete.
 
+## Appointments
+
+Load booking types from the backend instead of hardcoding them:
+
+```dart
+final appointmentTypes = await client.listAppointmentTypes();
+final selectedType = appointmentTypes.first.value; // e.g. visit
+
+final slots = await client.getAvailableAppointmentSlots(
+  date: DateTime.now().add(const Duration(days: 1)),
+);
+
+final appointment = await client.bookAppointment(
+  petId: pet.id,
+  scheduledTime: DateTime.parse(slots.first.start),
+  appointmentType: selectedType,
+);
+```
+
 ## Uploads With Progress
 
 Avatar and pet photos use multipart upload and backend `File` records.
