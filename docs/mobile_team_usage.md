@@ -144,6 +144,18 @@ final me = await client.getMe();
 
 The SDK stores sessions through the provided `TokenStore`, refreshes access tokens when needed, and clears stored sessions after password change, phone verification, sign-out, or account delete.
 
+## Pet Breeds
+
+Use the backend breed master for pet forms:
+
+```dart
+final breeds = await client.listPetBreeds(
+  animalType: 'Cat',
+  animalSpecies: 'Mammal',
+  search: 'domestic',
+);
+```
+
 ## Appointments
 
 Load booking types from the backend instead of hardcoding them:

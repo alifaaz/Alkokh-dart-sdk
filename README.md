@@ -49,6 +49,7 @@ final nextProducts = products.hasMore
 final bestSellerPage = await client.listHomeProducts(listId: 'best-sellers');
 final favorites = await client.listFavorites();
 final pets = await client.listPets();
+final catBreeds = await client.listPetBreeds(animalType: 'Cat');
 final addresses = await client.listAddresses();
 final quote = await client.quoteOrder(
   items: const [MobileOrderItem(itemCode: 'ITEM-001', qty: 2)],
@@ -85,7 +86,7 @@ For Flutter, use `KeyValueTokenStore` with `flutter_secure_storage` and pass it 
 - Catalog/search: block-based home with banners, products, product detail, categories, brands, search, suggestions.
 - Favorites/reviews/recent search: favorite toggle/list/remove, product review list/upsert, recent search list/save/clear.
 - Devices: register/delete FCM device tokens; no push sending yet.
-- Pets: list, detail, create, update, disable/archive, photo upload, medical timeline, documents, vaccination/deworming CRUD.
+- Pets: list, detail, breed list, create, update, disable/archive, photo upload, medical timeline, documents, vaccination/deworming CRUD.
 - Appointments: booking type list, available slots, upcoming appointments, book, reschedule, cancel.
 - Pet care services: guardian service list/detail with pet, category, template, option, pricing, dates, doctor/provider aliases.
 - Orders: quote frontend cart, place cash-only Sales Order, list, detail, cancel, reorder draft.

@@ -731,6 +731,55 @@ void main() {
     expect(page.items.single.type, 'Cat');
   });
 
+  test('listPetBreeds sends filters and parses breed list', () async {
+    final store = await _authedStore();
+    final client = AlkokhMobileClient(
+      config: const AlkokhMobileConfig(baseUrl: 'https://api.example.test'),
+      tokenStore: store,
+      httpClient: MockClient((request) async {
+        expect(request.headers['Authorization'], 'Bearer access');
+        expect(
+          request.url.path,
+          '/api/method/pet_app.api.mobile.pets.list_breeds',
+        );
+        expect(request.url.queryParameters['animal_type'], 'Cat');
+        expect(request.url.queryParameters['animal_species'], 'Mammal');
+        expect(request.url.queryParameters['search'], 'domestic');
+        expect(request.url.queryParameters['limit'], '25');
+        return _json({
+          'message': {
+            'ok': true,
+            'data': {
+              'items': [
+                {
+                  'id': 'Domestic Shorthair',
+                  'name': 'Domestic Shorthair',
+                  'arabic_name': 'Arabic Domestic Shorthair',
+                  'species': 'Mammal',
+                  'type': 'Cat',
+                },
+              ],
+              'total': 1,
+            },
+          },
+        });
+      }),
+    );
+
+    final breeds = await client.listPetBreeds(
+      animalType: 'Cat',
+      animalSpecies: 'Mammal',
+      search: 'domestic',
+      limit: 25,
+    );
+
+    expect(breeds.single.id, 'Domestic Shorthair');
+    expect(breeds.single.name, 'Domestic Shorthair');
+    expect(breeds.single.arabicName, 'Arabic Domestic Shorthair');
+    expect(breeds.single.species, 'Mammal');
+    expect(breeds.single.type, 'Cat');
+  });
+
   test('createPet sends mobile pet payload and parses disabled flag', () async {
     final store = MemoryTokenStore();
     await store.write(

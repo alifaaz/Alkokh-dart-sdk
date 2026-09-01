@@ -783,6 +783,23 @@ class AlkokhMobileClient {
     );
   }
 
+  Future<List<PetBreed>> listPetBreeds({
+    String? animalType,
+    String? animalSpecies,
+    String? search,
+    int limit = 100,
+  }) async {
+    final data = await _getAuthed('pet_app.api.mobile.pets.list_breeds', {
+      'limit': limit,
+      if (animalType != null && animalType.trim().isNotEmpty)
+        'animal_type': animalType.trim(),
+      if (animalSpecies != null && animalSpecies.trim().isNotEmpty)
+        'animal_species': animalSpecies.trim(),
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+    });
+    return _listOfMaps(data['items']).map(PetBreed.fromJson).toList();
+  }
+
   Future<MobilePet> getPet(String petId) async {
     final data = await _getAuthed('pet_app.api.mobile.pets.get_pet', {
       'pet': petId,

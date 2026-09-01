@@ -1735,6 +1735,35 @@ class HomeBrand {
   }
 }
 
+class PetBreed {
+  const PetBreed({
+    required this.id,
+    required this.name,
+    required this.raw,
+    this.arabicName,
+    this.species,
+    this.type,
+  });
+
+  final String id;
+  final String name;
+  final String? arabicName;
+  final String? species;
+  final String? type;
+  final Map<String, Object?> raw;
+
+  static PetBreed fromJson(Map<String, Object?> json) {
+    return PetBreed(
+      id: (json['id'] ?? json['name'] ?? '').toString(),
+      name: (json['name'] ?? json['breed_name'] ?? '').toString(),
+      arabicName: json['arabic_name'] as String?,
+      species: json['species'] as String? ?? json['animal_species'] as String?,
+      type: json['type'] as String? ?? json['animal_type'] as String?,
+      raw: Map<String, Object?>.from(json),
+    );
+  }
+}
+
 class MobilePet {
   const MobilePet({
     required this.id,
